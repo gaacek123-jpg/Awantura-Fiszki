@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Awantura — fiszki</title>
+<meta name="theme-color" content="#0b1530">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Awantura">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0b1530; --panel: #14224a; --panel2: #1c2d5e; --line: #2a3d73;
+    --text: #eef2ff; --muted: #9aa8d1; --gold: #f5c542; --gold-d: #c99a1b;
+    --ok: #2fbf71; --bad: #e5484d; --radius: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100dvh; touch-action: manipulation;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .3px; }
+  h1 b { color: var(--gold); }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 22px 0 10px; }
+  button, .btn {
+    font: inherit; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer;
+    background: var(--panel2); color: var(--text); text-align: center; text-decoration: none; display: inline-block;
+  }
+  button:active { transform: scale(.98); }
+  .primary { background: var(--gold); color: #1a1300; font-weight: 700; }
+  .ghost { background: transparent; border: 1px solid var(--line); }
+  .ok { background: var(--ok); color: #fff; font-weight: 700; }
+  .bad { background: var(--bad); color: #fff; font-weight: 700; }
+  .icon { padding: 8px 12px; font-size: 14px; }
+  .full { width: 100%; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .panel { background: var(--panel); border-radius: var(--radius); padding: 16px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .hidden { display: none !important; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--panel); border-radius: 12px; padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 24px; color: var(--gold); }
+  .stat span { font-size: 12px; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line);
+    font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  .chip.on { background: var(--panel2); border-color: var(--gold); color: var(--text); }
+  .chip i { font-style: normal; font-size: 11px; opacity: .8; }
+
+  .opts { display: grid; gap: 10px; }
+  .opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  select, input, textarea {
+    font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; width: 100%;
+  }
+  .opt select { width: auto; }
+  textarea { min-height: 140px; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+
+  .bar { height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--gold); border-radius: 99px; }
+  .catrow { display: grid; grid-template-columns: 1fr 60px; gap: 4px 10px; align-items: center; margin-bottom: 10px; font-size: 14px; }
+  .catrow .bar { grid-column: 1 / -1; }
+
+  /* Sesja */
+  .progress { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .card {
+    background: linear-gradient(160deg, var(--panel2), var(--panel)); border: 1px solid var(--line);
+    border-radius: 20px; padding: 22px 18px; min-height: 300px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .cat { align-self: flex-start; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold);
+         border: 1px solid var(--gold-d); border-radius: 99px; padding: 3px 10px; }
+  .q { font-size: 21px; font-weight: 600; line-height: 1.35; }
+  .a { font-size: 22px; font-weight: 700; color: var(--gold); border-top: 1px dashed var(--line); padding-top: 14px; }
+  .src { font-size: 13px; color: var(--muted); word-break: break-all; }
+  .src a { color: var(--muted); }
+  .timer { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .timer > div { height: 100%; width: 100%; background: var(--gold); transform-origin: left; }
+  .timer.low > div { background: var(--bad); }
+  .timeleft { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .hints { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hint { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 15px; text-align: center; }
+  .hint.right { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+  .actions { margin-top: 14px; display: grid; gap: 10px; }
+  .spacer { flex: 1; }
+
+  .list { display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
+  .item { background: var(--bg); border-radius: 10px; padding: 10px 12px; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+  .item div { flex: 1; }
+  .item small { color: var(--muted); display: block; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 9;
+    max-width: calc(100% - 32px);
+  }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- START -->
+  <section id="home">
+    <header>
+      <h1>Awantura <b>o kasę</b> · fiszki</h1>
+      <button class="icon ghost" data-go="manage">Pytania</button>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><b id="sTotal">0</b><span>pytań</span></div>
+      <div class="stat"><b id="sKnown">0</b><span>opanowane</span></div>
+      <div class="stat"><b id="sReview">0</b><span>do powtórki</span></div>
+    </div>
+
+    <h2>Kategorie</h2>
+    <div class="chips" id="chips"></div>
+
+    <h2>Ustawienia</h2>
+    <div class="panel opts">
+      <label class="opt">Czas na odpowiedź
+        <select id="optTimer">
+          <option value="0">bez limitu</option>
+          <option value="30">30 s</option>
+          <option value="60">60 s</option>
+          <option value="90">90 s</option>
+        </select>
+      </label>
+      <label class="opt">Liczba pytań w rundzie
+        <select id="optCount">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="40">40</option>
+          <option value="0">wszystkie</option>
+        </select>
+      </label>
+      <label class="opt">Kolejność
+        <select id="optOrder">
+          <option value="weak">najsłabsze najpierw</option>
+          <option value="random">losowo</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button class="primary full" id="btnStart">Graj rundę</button>
+      <button class="full" id="btnReview">Tylko pytania do powtórki</button>
+    </div>
+
+    <h2>Postęp w kategoriach</h2>
+    <div class="panel" id="catProgress"></div>
+
+    <p class="small muted" id="installHint"></p>
+  </section>
+
+  <!-- SESJA -->
+  <section id="play" class="hidden">
+    <header>
+      <button class="icon ghost" id="btnQuit">← Koniec</button>
+      <span class="timeleft" id="timeLeft"></span>
+    </header>
+    <div class="progress"><span id="pPos"></span><span id="pScore"></span></div>
+    <div class="timer" id="timer"><div id="timerFill"></div></div>
+    <div style="height:10px"></div>
+
+    <div class="card" id="card">
+      <span class="cat" id="cCat"></span>
+      <div class="q" id="cQ"></div>
+      <div class="hints hidden" id="cHints"></div>
+      <div class="spacer"></div>
+      <div class="a hidden" id="cA"></div>
+      <div class="src hidden" id="cSrc"></div>
+    </div>
+
+    <div class="actions" id="askActions">
+      <button class="primary full" id="btnReveal">Pokaż odpowiedź</button>
+      <button class="full" id="btnHint">Podpowiedź (4 warianty)</button>
+    </div>
+    <div class="actions hidden" id="judgeActions">
+      <div class="row">
+        <button class="bad" id="btnBad">Nie wiedziałem</button>
+        <button class="ok" id="btnOk">Wiedziałem</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- WYNIK -->
+  <section id="result" class="hidden">
+    <header><h1>Koniec rundy</h1></header>
+    <div class="panel">
+      <p style="font-size:28px;margin:0 0 6px"><b id="rScore"></b></p>
+      <p class="muted" id="rText" style="margin:0"></p>
+    </div>
+    <h2>Do zapamiętania</h2>
+    <div class="list" id="rMissed"></div>
+    <div class="actions">
+      <button class="primary full" id="btnAgain">Kolejna runda</button>
+      <button class="full" data-go="home">Ekran główny</button>
+    </div>
+  </section>
+
+  <!-- PYTANIA -->
+  <section id="manage" class="hidden">
+    <header>
+      <button class="icon ghost" data-go="home">← Wróć</button>
+      <h1>Pytania</h1>
+    </header>
+
+    <h2>Dodaj jedno</h2>
+    <div class="panel opts">
+      <input id="addCat" placeholder="Kategoria (np. Historia)" list="catList">
+      <datalist id="catList"></datalist>
+      <textarea id="addQ" placeholder="Pytanie" style="min-height:70px;font-family:inherit;font-size:16px"></textarea>
+      <input id="addA" placeholder="Odpowiedź">
+      <input id="addH" placeholder="Podpowiedź: 4 warianty po średniku (opcjonalnie)">
+      <input id="addZ" placeholder="Link do źródła (opcjonalnie)">
+      <button class="primary" id="btnAdd">Dodaj</button>
+    </div>
+
+    <h2>Import wielu naraz</h2>
+    <div class="panel opts">
+      <p class="small muted" style="margin:0">
+        Jedno pytanie w linii, pola rozdzielone <code>|</code> albo tabulatorem (wklejka z Excela działa):<br>
+        <code>Kategoria | Pytanie | Odpowiedź | A; B; C; D | link</code><br>
+        Ostatnie dwa pola są opcjonalne. Przyjmuje też plik/tekst JSON wyeksportowany z tej appki.
+      </p>
+      <textarea id="importText" placeholder="Historia | W którym roku…? | 1410"></textarea>
+      <div class="row">
+        <button class="primary" id="btnImport">Importuj tekst</button>
+        <label class="btn">Z pliku…<input type="file" id="importFile" accept=".json,.txt,.csv,.tsv" class="hidden"></label>
+      </div>
+    </div>
+
+    <h2>Udostępnij drużynie</h2>
+    <div class="panel opts">
+      <p class="small muted" style="margin:0">Wysyła Twoje dopisane pytania jako tekst. Kolega wkleja go w „Import wielu naraz”.</p>
+      <div class="row">
+        <button id="btnShare">Kopiuj / wyślij</button>
+        <button id="btnExport">Pobierz plik</button>
+      </div>
+    </div>
+
+    <h2>Twoje dopisane (<span id="customCount">0</span>)</h2>
+    <div class="list" id="customList"></div>
+
+    <h2>Inne</h2>
+    <details class="panel">
+      <summary>Zeruj postęp</summary>
+      <p class="small muted">Kasuje historię odpowiedzi na tym urządzeniu. Pytania zostają.</p>
+      <button class="bad" id="btnReset">Zeruj postęp</button>
+    </details>
+  </section>
+</div>
+
+<script src="pytania.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', settings: 'awantura.settings' };
+  const MAX_BOX = 4; // Leitner: 0 = nowe/źle, 4 = opanowane na pewno
+
+  const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+  // Id pytania = hash treści, więc postęp przetrwa przestawianie kolejności w pytania.js
+  const hash = s => { let h = 5381; for (const c of s) h = ((h << 5) + h + c.codePointAt(0)) | 0; return 'q' + (h >>> 0).toString(36); };
+  const norm = c => ({
+    k: String(c.k || 'Inne').trim(), p: String(c.p || '').trim(), o: String(c.o || '').trim(),
+    h: Array.isArray(c.h) && c.h.length >= 2 ? c.h.map(x => String(x).trim()).filter(Boolean) : null,
+    z: c.z ? String(c.z).trim() : '',
+  });
+
+  let custom = load(KEY.custom, []);
+  let progress = load(KEY.prog, {});
+  let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null }, load(KEY.settings, {}));
+
+  function allCards() {
+    const seen = new Set(), out = [];
+    for (const [src, list] of [['base', window.PYTANIA || []], ['custom', custom]]) {
+      for (const raw of list) {
+        const c = norm(raw);
+        if (!c.p || !c.o) continue;
+        c.id = hash(c.p.toLowerCase());
+        if (seen.has(c.id)) continue;
+        seen.add(c.id); c.src = src; out.push(c);
+      }
+    }
+    return out;
+  }
+  const box = id => progress[id]?.b ?? 0;
+  const isReview = id => progress[id] && progress[id].b === 0;
+  const isKnown = id => box(id) >= 3;
+
+  // ---------- nawigacja ----------
+  const screens = ['home', 'play', 'result', 'manage'];
+  function go(name) {
+    if (name !== 'play') stopTimer();
+    screens.forEach(s => $(s).classList.toggle('hidden', s !== name));
+    if (name === 'home') renderHome();
+    if (name === 'manage') renderManage();
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) go(t.dataset.go); });
+
+  let toastT;
+  function toast(msg) {
+    let el = document.querySelector('.toast');
+    if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+    el.textContent = msg; el.classList.remove('hidden');
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.add('hidden'), 2600);
+  }
+
+  // ---------- ekran główny ----------
+  function categories(cards) {
+    const m = new Map();
+    for (const c of cards) m.set(c.k, (m.get(c.k) || 0) + 1);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'pl'));
+  }
+  function activeCats(cards) {
+    const all = categories(cards).map(x => x[0]);
+    if (!settings.cats) return new Set(all);
+    const sel = new Set(settings.cats.filter(c => all.includes(c)));
+    return sel.size ? sel : new Set(all);
+  }
+
+  function renderHome() {
+    const cards = allCards();
+    $('sTotal').textContent = cards.length;
+    $('sKnown').textContent = cards.filter(c => isKnown(c.id)).length;
+    $('sReview').textContent = cards.filter(c => isReview(c.id)).length;
+
+    const act = activeCats(cards);
+    const chips = $('chips'); chips.innerHTML = '';
+    const cats = categories(cards);
+    const allOn = act.size === cats.length;
+    const allChip = document.createElement('button');
+    allChip.className = 'chip' + (allOn ? ' on' : '');
+    allChip.textContent = 'Wszystkie';
+    allChip.onclick = () => { settings.cats = null; save(KEY.settings, settings); renderHome(); };
+    chips.appendChild(allChip);
+    for (const [name, n] of cats) {
+      const b = document.createElement('button');
+      b.className = 'chip' + (!allOn && act.has(name) ? ' on' : '');
+      b.innerHTML = `${esc(name)} <i>${n}</i>`;
+      b.onclick = () => {
+        let sel = allOn ? new Set() : new Set(act);
+        sel.has(name) ? sel.delete(name) : sel.add(name);
+        settings.cats = sel.size ? [...sel] : null;
+        save(KEY.settings, settings); renderHome();
+      };
+      chips.appendChild(b);
+    }
+
+    $('optTimer').value = settings.timer; $('optCount').value = settings.count; $('optOrder').value = settings.order;
+
+    const cp = $('catProgress'); cp.innerHTML = '';
+    for (const [name, n] of cats) {
+      const list = cards.filter(c => c.k === name);
+      const score = list.reduce((s, c) => s + box(c.id), 0) / (n * MAX_BOX);
+      cp.insertAdjacentHTML('beforeend', `<div class="catrow"><span>${esc(name)}</span><span class="muted" style="text-align:right">${Math.round(score * 100)}%</span><div class="bar"><div style="width:${score * 100}%"></div></div></div>`);
+    }
+
+    const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    $('installHint').textContent = standalone ? '' :
+      'iPhone: w Safari kliknij „Udostępnij” → „Dodaj do ekranu początkowego”, żeby mieć appkę jak normalną aplikację (działa też offline).';
+  }
+  for (const [id, key] of [['optTimer', 'timer'], ['optCount', 'count']]) $(id).onchange = e => { settings[key] = +e.target.value; save(KEY.settings, settings); };
+  $('optOrder').onchange = e => { settings.order = e.target.value; save(KEY.settings, settings); };
+
+  // ---------- runda ----------
+  let deck = [], pos = 0, okCount = 0, missed = [], lastMode = 'normal';
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  function startRound(mode) {
+    lastMode = mode;
+    const cards = allCards();
+    const act = activeCats(cards);
+    let pool = cards.filter(c => act.has(c.k));
+    if (mode === 'review') pool = cards.filter(c => isReview(c.id));
+    if (!pool.length) { toast(mode === 'review' ? 'Brak pytań do powtórki — dobra robota.' : 'Brak pytań w wybranych kategoriach.'); return; }
+    shuffle(pool);
+    if (settings.order === 'weak') pool.sort((a, b) => box(a.id) - box(b.id)); // sort stabilny → w obrębie pudełka zostaje losowo
+    deck = settings.count ? pool.slice(0, settings.count) : pool;
+    pos = 0; okCount = 0; missed = [];
+    go('play'); showCard();
+  }
+  $('btnStart').onclick = () => startRound('normal');
+  $('btnReview').onclick = () => startRound('review');
+  $('btnAgain').onclick = () => startRound(lastMode);
+  $('btnQuit').onclick = () => (pos > 0 ? finish() : go('home'));
+
+  function showCard() {
+    const c = deck[pos];
+    $('pPos').textContent = `Pytanie ${pos + 1} / ${deck.length}`;
+    $('pScore').textContent = `✓ ${okCount}`;
+    $('cCat').textContent = c.k;
+    $('cQ').textContent = c.p;
+    $('cA').textContent = c.o; $('cA').classList.add('hidden');
+    $('cSrc').classList.add('hidden');
+    $('cSrc').innerHTML = c.z ? `Źródło: <a href="${esc(c.z)}" target="_blank" rel="noopener">${esc(c.z)}</a>` : '';
+    $('cHints').classList.add('hidden'); $('cHints').innerHTML = '';
+    $('btnHint').classList.toggle('hidden', !c.h);
+    $('btnHint').disabled = false;
+    $('askActions').classList.remove('hidden');
+    $('judgeActions').classList.add('hidden');
+    startTimer();
+  }
+
+  $('btnHint').onclick = () => {
+    const c = deck[pos];
+    $('cHints').innerHTML = c.h.map(h => `<div class="hint" data-h="${esc(h)}">${esc(h)}</div>`).join('');
+    $('cHints').classList.remove('hidden');
+    $('btnHint').disabled = true;
+  };
+  $('btnReveal').onclick = reveal;
+  $('card').onclick = e => { if (!e.target.closest('.hint, a') && !$('askActions').classList.contains('hidden')) reveal(); };
+
+  function reveal() {
+    stopTimer();
+    const c = deck[pos];
+    $('cA').classList.remove('hidden');
+    if (c.z) $('cSrc').classList.remove('hidden');
+    const answer = c.o.toLowerCase();
+    $('cHints').querySelectorAll('.hint').forEach(h => {
+      const v = h.dataset.h.toLowerCase();
+      if (answer === v || answer.startsWith(v + ' ') || answer.startsWith(v + ' (')) h.classList.add('right');
+    });
+    $('askActions').classList.add('hidden');
+    $('judgeActions').classList.remove('hidden');
+  }
+
+  function judge(ok) {
+    const c = deck[pos];
+    const p = progress[c.id] || { b: 0, ok: 0, bad: 0 };
+    if (ok) { p.ok++; p.b = Math.min(MAX_BOX, p.b + 1); okCount++; }
+    else { p.bad++; p.b = 0; missed.push(c); }
+    p.t = Date.now();
+    progress[c.id] = p; save(KEY.prog, progress);
+    pos++;
+    pos < deck.length ? showCard() : finish();
+  }
+  $('btnOk').onclick = () => judge(true);
+  $('btnBad').onclick = () => judge(false);
+
+  function finish() {
+    stopTimer();
+    const n = pos;
+    $('rScore').textContent = `${okCount} / ${n}`;
+    const pct = n ? okCount / n : 0;
+    $('rText').textContent = pct >= .8 ? 'Loża mistrzów w zasięgu.' : pct >= .5 ? 'Nieźle — powtórz te, które uciekły.' : 'Jest nad czym pracować. Pytania z błędem wpadły do powtórki.';
+    $('rMissed').innerHTML = missed.length
+      ? missed.map(c => `<div class="item"><div>${esc(c.p)}<small>→ <b style="color:var(--gold)">${esc(c.o)}</b> · ${esc(c.k)}</small></div></div>`).join('')
+      : '<p class="muted">Wszystko dobrze.</p>';
+    go('result');
+  }
+
+  // ---------- timer ----------
+  let timerEnd = 0, timerRaf = 0;
+  function startTimer() {
+    stopTimer();
+    const secs = settings.timer;
+    $('timer').classList.toggle('hidden', !secs);
+    $('timeLeft').textContent = '';
+    if (!secs) return;
+    timerEnd = performance.now() + secs * 1000;
+    const tick = now => {
+      const left = Math.max(0, timerEnd - now);
+      $('timerFill').style.transform = `scaleX(${left / (secs * 1000)})`;
+      $('timer').classList.toggle('low', left < 10000);
+      $('timeLeft').textContent = Math.ceil(left / 1000) + ' s';
+      if (left <= 0) { if (navigator.vibrate) navigator.vibrate(200); reveal(); return; }
+      timerRaf = requestAnimationFrame(tick);
+    };
+    timerRaf = requestAnimationFrame(tick);
+  }
+  function stopTimer() { cancelAnimationFrame(timerRaf); timerRaf = 0; }
+
+  // ---------- zarządzanie pytaniami ----------
+  function renderManage() {
+    const cards = allCards();
+    $('catList').innerHTML = categories(cards).map(([c]) => `<option value="${esc(c)}">`).join('');
+    $('customCount').textContent = custom.length;
+    $('customList').innerHTML = custom.length ? custom.map((c, i) =>
+      `<div class="item"><div>${esc(c.p)}<small>${esc(c.o)} · ${esc(c.k)}</small></div><button class="icon ghost" data-del="${i}">Usuń</button></div>`
+    ).join('') : '<p class="muted small">Jeszcze nic. Dodaj pytanie albo zaimportuj listę.</p>';
+  }
+  $('customList').onclick = e => {
+    const b = e.target.closest('[data-del]'); if (!b) return;
+    if (!confirm('Usunąć to pytanie?')) return;
+    custom.splice(+b.dataset.del, 1); save(KEY.custom, custom); renderManage();
+  };
+
+  function addCards(list) {
+    const existing = new Set(allCards().map(c => c.id));
+    let added = 0, dup = 0;
+    for (const raw of list) {
+      const c = norm(raw);
+      if (!c.p || !c.o) continue;
+      const id = hash(c.p.toLowerCase());
+      if (existing.has(id)) { dup++; continue; }
+      existing.add(id);
+      const out = { k: c.k, p: c.p, o: c.o };
+      if (c.h) out.h = c.h;
+      if (c.z) out.z = c.z;
+      custom.push(out); added++;
+    }
+    save(KEY.custom, custom);
+    return { added, dup };
+  }
+
+  $('btnAdd').onclick = () => {
+    const c = { k: $('addCat').value || 'Inne', p: $('addQ').value, o: $('addA').value,
+                h: $('addH').value ? $('addH').value.split(';') : null, z: $('addZ').value };
+    if (!c.p.trim() || !c.o.trim()) { toast('Wpisz pytanie i odpowiedź.'); return; }
+    const r = addCards([c]);
+    if (r.dup) { toast('Takie pytanie już jest.'); return; }
+    ['addQ', 'addA', 'addH', 'addZ'].forEach(id => $(id).value = '');
+    toast('Dodano.'); renderManage();
+  };
+
+  function parseImport(text) {
+    text = text.replace(/^﻿/, '').trim();
+    if (!text) return [];
+    if (text[0] === '[' || text[0] === '{') {
+      const data = JSON.parse(text);
+      return Array.isArray(data) ? data : (data.pytania || []);
+    }
+    return text.split(/\r?\n/).map(line => {
+      if (!line.trim() || line.trim().startsWith('#')) return null;
+      const f = line.split(line.includes('\t') ? '\t' : '|').map(s => s.trim());
+      if (f.length < 3) return null;
+      const [k, p, o, h, z] = f;
+      return { k, p, o, h: h ? h.split(';') : null, z };
+    }).filter(Boolean);
+  }
+  function doImport(text) {
+    let list;
+    try { list = parseImport(text); } catch { toast('Nie umiem odczytać tego JSON-a.'); return false; }
+    if (!list.length) { toast('Nie znalazłem żadnej linii w formacie „Kategoria | Pytanie | Odpowiedź”.'); return false; }
+    const r = addCards(list);
+    toast(`Dodano ${r.added}` + (r.dup ? `, pominięto duplikaty: ${r.dup}` : '') + '.');
+    renderManage(); return true;
+  }
+  $('btnImport').onclick = () => { if (doImport($('importText').value)) $('importText').value = ''; };
+  $('importFile').onchange = async e => { const f = e.target.files[0]; if (f) doImport(await f.text()); e.target.value = ''; };
+
+  const asText = () => custom.map(c => [c.k, c.p, c.o, (c.h || []).join('; '), c.z || ''].join(' | ').replace(/( \| )+$/, '')).join('\n');
+  $('btnShare').onclick = async () => {
+    if (!custom.length) { toast('Nie masz jeszcze dopisanych pytań.'); return; }
+    const text = asText();
+    if (navigator.share) { try { await navigator.share({ title: 'Pytania — Awantura', text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+    try { await navigator.clipboard.writeText(text); toast('Skopiowano — wklej drużynie.'); }
+    catch { $('importText').value = text; toast('Tekst jest w polu importu — skopiuj go ręcznie.'); }
+  };
+  $('btnExport').onclick = () => {
+    const blob = new Blob([JSON.stringify(custom, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'awantura-pytania.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('btnReset').onclick = () => { if (confirm('Na pewno wyzerować postęp na tym urządzeniu?')) { progress = {}; save(KEY.prog, progress); toast('Wyzerowano.'); go('home'); } };
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  go('home');
+})();
+</script>
+</body>
+</html>
