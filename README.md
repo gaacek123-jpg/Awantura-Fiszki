@@ -14,7 +14,26 @@ Fiszki dla naszej drużyny przed występem w „Awanturze o kasę”. Statyczna 
 - Postęp i dopisane pytania zapisują się tylko na danym telefonie (localStorage).
 
 ## Dodawanie pytań
-- **Dla wszystkich:** dopisz do `pytania.js` i zrób push na `main`. Strona zaktualizuje się sama.
 - **Z telefonu:** zakładka „Pytania” → dodaj jedno albo wklej wiele w formacie
   `Kategoria | Pytanie | Odpowiedź | A; B; C; D | link` (dwa ostatnie pola opcjonalne, tabulatory z Excela też działają).
-  „Kopiuj / wyślij” daje tekst, który reszta drużyny wkleja u siebie w import.
+  Pytanie trafia do wspólnej bazy i cała drużyna widzi je po odświeżeniu. Bez internetu czeka w kolejce na telefonie.
+- **Do pliku:** `node narzedzia/zrzut.mjs` dopisuje pytania z bazy do `pytania.json`, potem commit + push.
+- **Ręcznie:** dopisz do `pytania.json` i zrób push na `main`.
+
+## Wspólna baza
+Firebase Realtime Database projektu `plan-dyzurow` (ten sam co Plan sprzątania), gałąź `awantura/pytania`, dostęp przez REST.
+Reguły dla tej gałęzi (obok istniejącego `dyzury`):
+
+```json
+"awantura": {
+  ".read": true,
+  "pytania": {
+    "$id": {
+      ".write": true,
+      ".validate": "newData.child('p').isString() && newData.child('p').val().length <= 500 && newData.child('o').isString() && newData.child('o').val().length <= 300"
+    }
+  }
+}
+```
+
+Baza jest otwarta, tak jak w Planie sprzątania: kto zna adres, może dopisywać i usuwać pytania. Postęp nauki zostaje tylko na telefonie.

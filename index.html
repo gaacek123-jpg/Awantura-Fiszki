@@ -221,6 +221,7 @@
 
     <h2>Dodaj jedno</h2>
     <div class="panel opts">
+      <input id="optName" placeholder="Twoje imię (widać przy Twoich pytaniach)">
       <input id="addCat" placeholder="Kategoria (np. Historia)" list="catList">
       <datalist id="catList"></datalist>
       <textarea id="addQ" placeholder="Pytanie" style="min-height:70px;font-family:inherit;font-size:16px"></textarea>
@@ -235,7 +236,7 @@
       <p class="small muted" style="margin:0">
         Jedno pytanie w linii, pola rozdzielone <code>|</code> albo tabulatorem (wklejka z Excela działa):<br>
         <code>Kategoria | Pytanie | Odpowiedź | A; B; C; D | link</code><br>
-        Ostatnie dwa pola są opcjonalne. Przyjmuje też plik/tekst JSON wyeksportowany z tej appki.
+        Ostatnie dwa pola są opcjonalne. Przyjmuje też tekst/plik JSON w formacie pytania.json.
       </p>
       <textarea id="importText" placeholder="Historia | W którym roku…? | 1410"></textarea>
       <div class="row">
@@ -244,16 +245,15 @@
       </div>
     </div>
 
-    <h2>Udostępnij drużynie</h2>
+    <h2>Wspólne pytania drużyny (<span id="customCount">0</span>)</h2>
     <div class="panel opts">
-      <p class="small muted" style="margin:0">Wysyła Twoje dopisane pytania jako tekst. Kolega wkleja go w „Import wielu naraz”.</p>
-      <div class="row">
-        <button id="btnShare">Kopiuj / wyślij</button>
-        <button id="btnExport">Pobierz plik</button>
+      <p class="small muted" style="margin:0">Wszystko, co dodacie tutaj, trafia do wspólnej bazy i każdy widzi to u siebie po odświeżeniu.</p>
+      <div class="row" style="align-items:center">
+        <span class="small muted" id="syncStatus"></span>
+        <button class="icon" id="btnSync" style="flex:0 0 auto">Odśwież</button>
       </div>
     </div>
-
-    <h2>Twoje dopisane (<span id="customCount">0</span>)</h2>
+    <div style="height:10px"></div>
     <div class="list" id="customList"></div>
 
     <h2>Inne</h2>
@@ -265,11 +265,13 @@
   </section>
 </div>
 
-<script src="pytania.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', settings: 'awantura.settings' };
+  // Wspólna baza drużyny: Firebase RTDB projektu Planu sprzątania, osobna gałąź awantura/pytania (REST, bez SDK)
+  const DB = 'https://plan-dyzurow-default-rtdb.europe-west1.firebasedatabase.app/awantura/pytania';
+  // custom = pytania dodane na tym urządzeniu, jeszcze niewysłane do bazy (kolejka offline)
+  const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', shared: 'awantura.shared', settings: 'awantura.settings' };
   const MAX_BOX = 4; // Leitner: 0 = nowe/źle, 4 = opanowane na pewno
 
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
@@ -283,19 +285,23 @@
     z: c.z ? String(c.z).trim() : '',
   });
 
-  let custom = load(KEY.custom, []);
+  let base = [];
+  let custom = load(KEY.custom, []).map(c => ({ ...c, _id: c._id || hash(String(c.p).trim().toLowerCase()) }));
+  let shared = load(KEY.shared, {});
   let progress = load(KEY.prog, {});
-  let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null }, load(KEY.settings, {}));
+  let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null, name: '' }, load(KEY.settings, {}));
+  let sync = { at: 0, error: '' };
 
   function allCards() {
     const seen = new Set(), out = [];
-    for (const [src, list] of [['base', window.PYTANIA || []], ['custom', custom]]) {
+    const sharedList = Object.entries(shared || {}).map(([id, c]) => ({ ...c, _id: id }));
+    for (const [src, list] of [['base', base], ['shared', sharedList], ['custom', custom]]) {
       for (const raw of list) {
         const c = norm(raw);
         if (!c.p || !c.o) continue;
         c.id = hash(c.p.toLowerCase());
         if (seen.has(c.id)) continue;
-        seen.add(c.id); c.src = src; out.push(c);
+        seen.add(c.id); c.src = src; c.a = raw.a || ''; c._id = raw._id || c.id; out.push(c);
       }
     }
     return out;
@@ -306,7 +312,9 @@
 
   // ---------- nawigacja ----------
   const screens = ['home', 'play', 'result', 'manage'];
+  let screen = 'home';
   function go(name) {
+    screen = name;
     if (name !== 'play') stopTimer();
     screens.forEach(s => $(s).classList.toggle('hidden', s !== name));
     if (name === 'home') renderHome();
@@ -492,16 +500,36 @@
   function renderManage() {
     const cards = allCards();
     $('catList').innerHTML = categories(cards).map(([c]) => `<option value="${esc(c)}">`).join('');
-    $('customCount').textContent = custom.length;
-    $('customList').innerHTML = custom.length ? custom.map((c, i) =>
-      `<div class="item"><div>${esc(c.p)}<small>${esc(c.o)} · ${esc(c.k)}</small></div><button class="icon ghost" data-del="${i}">Usuń</button></div>`
-    ).join('') : '<p class="muted small">Jeszcze nic. Dodaj pytanie albo zaimportuj listę.</p>';
+    $('optName').value = settings.name;
+    const sharedList = Object.entries(shared).map(([id, c]) => ({ ...c, _id: id })).sort((a, b) => (b.t || 0) - (a.t || 0));
+    $('customCount').textContent = sharedList.length + custom.length;
+    const row = (c, kind) => `<div class="item"><div>${esc(c.p)}<small>${esc(c.o)} · ${esc(c.k)}` +
+      (c.a ? ` · ${esc(c.a)}` : '') + (kind === 'pending' ? ' · <b style="color:var(--gold)">czeka na wysłanie</b>' : '') +
+      `</small></div><button class="icon ghost" data-del="${esc(c._id)}" data-kind="${kind}">Usuń</button></div>`;
+    const html = custom.map(c => row(c, 'pending')).join('') + sharedList.map(c => row(c, 'shared')).join('');
+    $('customList').innerHTML = html || '<p class="muted small">Jeszcze nic. Dodaj pytanie albo zaimportuj listę.</p>';
+    renderSync();
   }
-  $('customList').onclick = e => {
+  function renderSync() {
+    const t = sync.at ? new Date(sync.at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) : '';
+    $('syncStatus').textContent = sync.error
+      ? `Brak połączenia z bazą (${sync.error})` + (custom.length ? ` · ${custom.length} czeka na wysłanie` : '')
+      : sync.at ? `Zsynchronizowano o ${t}` : 'Łączę z bazą…';
+  }
+  $('customList').onclick = async e => {
     const b = e.target.closest('[data-del]'); if (!b) return;
-    if (!confirm('Usunąć to pytanie?')) return;
-    custom.splice(+b.dataset.del, 1); save(KEY.custom, custom); renderManage();
+    if (!confirm(b.dataset.kind === 'shared' ? 'Usunąć to pytanie dla całej drużyny?' : 'Usunąć to pytanie?')) return;
+    const id = b.dataset.del;
+    if (b.dataset.kind === 'pending') {
+      custom = custom.filter(c => c._id !== id); save(KEY.custom, custom); renderManage(); return;
+    }
+    try {
+      const r = await fetch(`${DB}/${encodeURIComponent(id)}.json`, { method: 'DELETE' });
+      if (!r.ok) throw new Error(r.status);
+      delete shared[id]; save(KEY.shared, shared); renderManage();
+    } catch { toast('Nie udało się usunąć — brak połączenia z bazą.'); }
   };
+  $('optName').onchange = e => { settings.name = e.target.value.trim().slice(0, 40); save(KEY.settings, settings); };
 
   function addCards(list) {
     const existing = new Set(allCards().map(c => c.id));
@@ -512,14 +540,52 @@
       const id = hash(c.p.toLowerCase());
       if (existing.has(id)) { dup++; continue; }
       existing.add(id);
-      const out = { k: c.k, p: c.p, o: c.o };
+      const out = { _id: id, k: c.k, p: c.p, o: c.o, t: Date.now() };
       if (c.h) out.h = c.h;
       if (c.z) out.z = c.z;
+      if (settings.name) out.a = settings.name;
       custom.push(out); added++;
     }
     save(KEY.custom, custom);
+    syncAll();
     return { added, dup };
   }
+
+  // ---------- wspólna baza ----------
+  async function pushPending() {
+    if (!custom.length) return;
+    const body = {};
+    for (const c of custom) {
+      const { _id, ...rest } = c;
+      body[_id || hash(c.p.toLowerCase())] = { ...rest, t: rest.t || Date.now() };
+    }
+    const r = await fetch(`${DB}.json`, { method: 'PATCH', body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);
+    Object.assign(shared, body);
+    custom = []; save(KEY.custom, custom); save(KEY.shared, shared);
+  }
+  async function pullShared() {
+    const r = await fetch(`${DB}.json`, { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);
+    shared = (await r.json()) || {};
+    save(KEY.shared, shared);
+  }
+  let syncing = null;
+  function syncAll() {
+    if (syncing) return syncing;
+    syncing = (async () => {
+      try { await pushPending(); await pullShared(); sync = { at: Date.now(), error: '' }; }
+      catch (e) { sync.error = e.message === 'Failed to fetch' ? 'offline' : e.message; }
+      finally {
+        syncing = null;
+        if (screen === 'home') renderHome();
+        if (screen === 'manage') renderManage();
+      }
+    })();
+    return syncing;
+  }
+  $('btnSync').onclick = () => { $('syncStatus').textContent = 'Odświeżam…'; syncAll(); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncAll(); });
 
   $('btnAdd').onclick = () => {
     const c = { k: $('addCat').value || 'Inne', p: $('addQ').value, o: $('addA').value,
@@ -557,24 +623,15 @@
   $('btnImport').onclick = () => { if (doImport($('importText').value)) $('importText').value = ''; };
   $('importFile').onchange = async e => { const f = e.target.files[0]; if (f) doImport(await f.text()); e.target.value = ''; };
 
-  const asText = () => custom.map(c => [c.k, c.p, c.o, (c.h || []).join('; '), c.z || ''].join(' | ').replace(/( \| )+$/, '')).join('\n');
-  $('btnShare').onclick = async () => {
-    if (!custom.length) { toast('Nie masz jeszcze dopisanych pytań.'); return; }
-    const text = asText();
-    if (navigator.share) { try { await navigator.share({ title: 'Pytania — Awantura', text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-    try { await navigator.clipboard.writeText(text); toast('Skopiowano — wklej drużynie.'); }
-    catch { $('importText').value = text; toast('Tekst jest w polu importu — skopiuj go ręcznie.'); }
-  };
-  $('btnExport').onclick = () => {
-    const blob = new Blob([JSON.stringify(custom, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'awantura-pytania.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
   $('btnReset').onclick = () => { if (confirm('Na pewno wyzerować postęp na tym urządzeniu?')) { progress = {}; save(KEY.prog, progress); toast('Wyzerowano.'); go('home'); } };
 
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  fetch('pytania.json', { cache: 'no-cache' })
+    .then(r => r.json()).then(list => { base = Array.isArray(list) ? list : []; })
+    .catch(() => toast('Nie udało się wczytać pytania.json.'))
+    .finally(() => { if (screen === 'home') renderHome(); syncAll(); });
   go('home');
 })();
 </script>
