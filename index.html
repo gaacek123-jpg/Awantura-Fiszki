@@ -165,6 +165,7 @@
 
     <div class="actions">
       <button class="primary full" id="btnStart">Graj rundę</button>
+      <button class="full" id="btnMarathon">Maraton — pytania bez końca</button>
       <button class="full" id="btnReview">Tylko pytania do powtórki</button>
     </div>
 
@@ -441,30 +442,37 @@
   $('optOrder').onchange = e => { settings.order = e.target.value; save(KEY.settings, settings); };
 
   // ---------- runda ----------
-  let deck = [], pos = 0, okCount = 0, missed = [], lastMode = 'normal';
+  let deck = [], pos = 0, answered = 0, okCount = 0, missed = [], lastMode = 'normal';
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const MARATHON_RETRY = 6; // w maratonie pytanie z błędem wraca po tylu kolejnych pytaniach
 
-  function startRound(mode) {
-    lastMode = mode;
+  function buildPool(mode) {
     const cards = activeCards();
     const act = activeCats(cards);
     let pool = cards.filter(c => act.has(c.k));
     if (mode === 'review') pool = cards.filter(c => isReview(c.id));
-    if (!pool.length) { toast(mode === 'review' ? 'Brak pytań do powtórki — dobra robota.' : 'Brak pytań w wybranych kategoriach.'); return; }
     shuffle(pool);
     if (settings.order === 'weak') pool.sort((a, b) => box(a.id) - box(b.id)); // sort stabilny → w obrębie pudełka zostaje losowo
-    deck = settings.count ? pool.slice(0, settings.count) : pool;
-    pos = 0; okCount = 0; missed = [];
+    return pool;
+  }
+  function startRound(mode) {
+    lastMode = mode;
+    const pool = buildPool(mode);
+    if (!pool.length) { toast(mode === 'review' ? 'Brak pytań do powtórki — dobra robota.' : 'Brak pytań w wybranych kategoriach.'); return; }
+    // Maraton: cała pula bez limitu, a po jej wyczerpaniu kolejne przetasowanie (najsłabsze znów na początku)
+    deck = mode === 'marathon' || !settings.count ? pool : pool.slice(0, settings.count);
+    pos = 0; answered = 0; okCount = 0; missed = [];
     go('play'); showCard();
   }
   $('btnStart').onclick = () => startRound('normal');
+  $('btnMarathon').onclick = () => startRound('marathon');
   $('btnReview').onclick = () => startRound('review');
   $('btnAgain').onclick = () => startRound(lastMode);
-  $('btnQuit').onclick = () => (pos > 0 ? finish() : go('home'));
+  $('btnQuit').onclick = () => (answered > 0 ? finish() : go('home'));
 
   function showCard() {
     const c = deck[pos];
-    $('pPos').textContent = `Pytanie ${pos + 1} / ${deck.length}`;
+    $('pPos').textContent = lastMode === 'marathon' ? `Maraton · pytanie ${answered + 1}` : `Pytanie ${pos + 1} / ${deck.length}`;
     $('pScore').textContent = `✓ ${okCount}`;
     $('cCat').textContent = `${c.k} · ${c.src === 'user' && c.a ? 'od: ' + c.a : SRC[c.src]}`;
     $('cCat').title = c.src === 'ai' ? 'Pytanie wygenerowane przez AI — jeśli coś się nie zgadza, zgłoś błąd' : '';
@@ -559,6 +567,16 @@
     else { p.bad++; p.b = 0; missed.push(c); }
     p.t = Date.now();
     progress[c.id] = p; save(KEY.prog, progress);
+    answered++;
+    if (lastMode === 'marathon') {
+      if (!ok) deck.splice(Math.min(deck.length, pos + 1 + MARATHON_RETRY), 0, c);
+      if (pos + 1 >= deck.length) {
+        const next = buildPool('marathon');
+        if (next.length > 1 && next[0].id === c.id) next.push(next.shift()); // bez tego samego pytania dwa razy z rzędu
+        deck = next; pos = 0;
+      } else pos++;
+      return deck.length ? showCard() : finish();
+    }
     pos++;
     pos < deck.length ? showCard() : finish();
   }
@@ -567,9 +585,12 @@
 
   function finish() {
     stopTimer();
-    const n = pos;
+    const n = answered;
     $('rScore').textContent = `${okCount} / ${n}`;
     const pct = n ? okCount / n : 0;
+    $('btnAgain').textContent = lastMode === 'marathon' ? 'Kolejny maraton' : 'Kolejna runda';
+    // W maratonie to samo pytanie mogło paść kilka razy — na liście „do zapamiętania” wystarczy raz
+    missed = missed.filter((c, i) => missed.findIndex(m => m.id === c.id) === i);
     $('rText').textContent = pct >= .8 ? 'Loża mistrzów w zasięgu.' : pct >= .5 ? 'Nieźle — powtórz te, które uciekły.' : 'Jest nad czym pracować. Pytania z błędem wpadły do powtórki.';
     $('rMissed').innerHTML = missed.length
       ? missed.map(c => `<div class="item"><div>${esc(c.p)}<small>→ <b style="color:var(--gold)">${esc(c.o)}</b> · ${esc(c.k)}</small></div></div>`).join('')
