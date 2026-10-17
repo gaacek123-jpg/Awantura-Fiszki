@@ -11,7 +11,10 @@ Uruchom:
 ```
 node C:\Users\gaace\AwanturaPrep\narzedzia\dodaj.mjs --statystyki
 ```
-Dostaniesz liczbę pytań w kategoriach (od najmniej licznych) i wszystkie istniejące pytania z odpowiedziami. Większość z nich to prawdziwe pytania z programu, spisane przez drużynę. Na nich się wzoruj.
+Dostaniesz liczbę pytań w kategoriach (od najmniej licznych) i wszystkie istniejące pytania z odpowiedziami, każde ze źródłem:
+- `[program]` — prawdziwe pytania z odcinków, spisane przez drużynę. **Tylko na nich wzoruj styl i poziom.**
+- `[ai]` — pytania wygenerowane wcześniej. Sprawdzaj je tylko pod kątem dubli, nie naśladuj ich.
+- `[user]` — pytania dodane przez drużynę w appce.
 
 ## Krok 2 — napisz pytania
 Zapisz je do pliku `C:\Users\gaace\AwanturaPrep\narzedzia\nowe.json` w formacie:
@@ -44,7 +47,7 @@ node C:\Users\gaace\AwanturaPrep\narzedzia\dodaj.mjs C:\Users\gaace\AwanturaPrep
 ```
 - Popraw wszystkie odrzucone pytania.
 - Przy każdej uwadze o dublu zdecyduj, czy to naprawdę inne pytanie. Jeśli to ten sam fakt, wymień je.
-- Gdy wszystko jest czyste, uruchom to samo polecenie bez `--sprawdz`. Skrypt dopisze pytania z oznaczeniem `"ai": true`.
+- Gdy wszystko jest czyste, uruchom to samo polecenie bez `--sprawdz`. Skrypt dopisze pytania ze źródłem `"src": "ai"` (w appce: „· AI”).
 - Potem usuń `nowe.json`.
 
 ## Krok 4 — publikacja

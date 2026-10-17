@@ -131,6 +131,9 @@
       <div class="stat"><b id="sReview">0</b><span>do powtórki</span></div>
     </div>
 
+    <h2>Źródło pytań</h2>
+    <div class="chips" id="srcChips"></div>
+
     <h2>Kategorie</h2>
     <div class="chips" id="chips"></div>
 
@@ -307,8 +310,10 @@
     k: String(c.k || 'Inne').trim(), p: String(c.p || '').trim(), o: String(c.o || '').trim(),
     h: Array.isArray(c.h) && c.h.length >= 2 ? c.h.map(x => String(x).trim()).filter(Boolean) : null,
     z: c.z ? String(c.z).trim() : '',
-    ai: !!c.ai,
   });
+  // Źródło: program = spisane z odcinków, ai = wygenerowane, user = dodane przez drużynę w appce
+  const SRC = { program: 'Z programu', ai: 'AI', user: 'Od drużyny' };
+  const srcOn = s => !settings.srcs || settings.srcs.includes(s);
 
   let base = [];
   let custom = load(KEY.custom, []).map(c => ({ ...c, _id: c._id || hash(String(c.p).trim().toLowerCase()) }));
@@ -316,23 +321,26 @@
   let reports = load(KEY.reports, {});
   let repQueue = load(KEY.repQueue, []);
   let progress = load(KEY.prog, {});
-  let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null, name: '' }, load(KEY.settings, {}));
+  let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null, srcs: null, name: '' }, load(KEY.settings, {}));
   let sync = { at: 0, error: '' };
 
   function allCards() {
     const seen = new Set(), out = [];
     const sharedList = Object.entries(shared || {}).map(([id, c]) => ({ ...c, _id: id }));
-    for (const [src, list] of [['base', base], ['shared', sharedList], ['custom', custom]]) {
+    for (const [origin, list] of [['base', base], ['shared', sharedList], ['custom', custom]]) {
       for (const raw of list) {
         const c = norm(raw);
         if (!c.p || !c.o) continue;
         c.id = hash(c.p.toLowerCase());
         if (seen.has(c.id)) continue;
-        seen.add(c.id); c.src = src; c.a = raw.a || ''; c._id = raw._id || c.id; out.push(c);
+        c.src = origin === 'base' ? (SRC[raw.src] ? raw.src : raw.ai ? 'ai' : 'program') : 'user';
+        seen.add(c.id); c.a = raw.a || ''; c._id = raw._id || c.id; out.push(c);
       }
     }
     return out;
   }
+  // Pytania z zaznaczonych źródeł — z tego korzysta ekran główny i losowanie rundy
+  const activeCards = () => allCards().filter(c => srcOn(c.src));
   const box = id => progress[id]?.b ?? 0;
   const isReview = id => progress[id] && progress[id].b === 0;
   const isKnown = id => box(id) >= 3;
@@ -372,7 +380,24 @@
   }
 
   function renderHome() {
-    const cards = allCards();
+    const every = allCards();
+    $('srcChips').innerHTML = '';
+    for (const [s, label] of Object.entries(SRC)) {
+      const n = every.filter(c => c.src === s).length;
+      const b = document.createElement('button');
+      b.className = 'chip' + (srcOn(s) ? ' on' : '');
+      b.innerHTML = `${esc(label)} <i>${n}</i>`;
+      b.onclick = () => {
+        const sel = new Set(settings.srcs || Object.keys(SRC));
+        sel.has(s) ? sel.delete(s) : sel.add(s);
+        if (!sel.size) { toast('Zostaw zaznaczone przynajmniej jedno źródło.'); return; }
+        settings.srcs = sel.size === Object.keys(SRC).length ? null : [...sel];
+        save(KEY.settings, settings); renderHome();
+      };
+      $('srcChips').appendChild(b);
+    }
+
+    const cards = activeCards();
     $('sTotal').textContent = cards.length;
     $('sKnown').textContent = cards.filter(c => isKnown(c.id)).length;
     $('sReview').textContent = cards.filter(c => isReview(c.id)).length;
@@ -421,7 +446,7 @@
 
   function startRound(mode) {
     lastMode = mode;
-    const cards = allCards();
+    const cards = activeCards();
     const act = activeCats(cards);
     let pool = cards.filter(c => act.has(c.k));
     if (mode === 'review') pool = cards.filter(c => isReview(c.id));
@@ -441,8 +466,8 @@
     const c = deck[pos];
     $('pPos').textContent = `Pytanie ${pos + 1} / ${deck.length}`;
     $('pScore').textContent = `✓ ${okCount}`;
-    $('cCat').textContent = c.k + (c.ai ? ' · AI' : '');
-    $('cCat').title = c.ai ? 'Pytanie wygenerowane przez AI — jeśli coś się nie zgadza, zgłoś błąd' : '';
+    $('cCat').textContent = `${c.k} · ${c.src === 'user' && c.a ? 'od: ' + c.a : SRC[c.src]}`;
+    $('cCat').title = c.src === 'ai' ? 'Pytanie wygenerowane przez AI — jeśli coś się nie zgadza, zgłoś błąd' : '';
     $('cQ').textContent = c.p;
     $('cA').textContent = c.o; $('cA').classList.add('hidden');
     $('cSrc').classList.add('hidden');

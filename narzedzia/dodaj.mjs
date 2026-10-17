@@ -2,30 +2,22 @@
 //   node narzedzia/dodaj.mjs --statystyki        → liczba pytań w kategoriach + wszystkie odpowiedzi (do unikania dubli)
 //   node narzedzia/dodaj.mjs <nowe.json> [--sprawdz] → waliduje i dopisuje pytania do pytania.json (z --sprawdz tylko waliduje)
 // Format nowe.json: [{ "k": "Kategoria", "p": "Pytanie?", "o": "Odpowiedź", "h": ["A", "B", "C", "D"] }, ...]
-import { readFileSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { KATEGORIE, ZRODLA, id, wczytaj, zapisz } from './wspolne.mjs';
 
-const FILE = fileURLToPath(new URL('../pytania.json', import.meta.url));
-export const KATEGORIE = ['Anatomia i medycyna', 'Astronomia', 'Biologia', 'Chemia', 'Czasy współczesne', 'Film', 'Filozofia i religie',
-  'Fizyka', 'Geografia', 'Historia', 'Język polski', 'Kulinaria', 'Literatura', 'Matematyka', 'Motoryzacja', 'Muzyka klasyczna',
-  'Muzyka rozrywkowa', 'Piłka nożna', 'Polityka i gospodarka', 'Popkultura', 'Przysłowia i cytaty', 'Rozmaitości', 'Seriale',
-  'Sport', 'Sztuka', 'Technologie', 'Wędkarstwo'];
-
-// Ten sam hash co w index.html — duplikat = ta sama treść pytania
-const hash = s => { let h = 5381; for (const c of s) h = ((h << 5) + h + c.codePointAt(0)) | 0; return 'q' + (h >>> 0).toString(36); };
-const id = p => hash(String(p).trim().toLowerCase());
 const plain = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/[^a-z0-9]+/g, ' ').trim();
 
-const base = JSON.parse(readFileSync(FILE, 'utf8'));
+const base = wczytaj();
 const [arg, flag] = process.argv.slice(2);
 
 if (arg === '--statystyki') {
   const cats = Object.fromEntries(KATEGORIE.map(k => [k, 0]));
   for (const c of base) cats[c.k] = (cats[c.k] || 0) + 1;
-  console.log(`Pytań: ${base.length} (w tym wygenerowanych: ${base.filter(c => c.ai).length})\n\nKategorie (od najmniej licznych):`);
+  const src = Object.entries(ZRODLA).map(([s, nazwa]) => `${nazwa}: ${base.filter(c => c.src === s).length}`).join(', ');
+  console.log(`Pytań: ${base.length} (${src})\n\nKategorie (od najmniej licznych):`);
   for (const [k, n] of Object.entries(cats).sort((a, b) => a[1] - b[1])) console.log(`  ${String(n).padStart(3)}  ${k}`);
-  console.log('\nIstniejące pytania (kategoria | pytanie → odpowiedź):');
-  for (const c of base) console.log(`  ${c.k} | ${c.p} → ${c.o}`);
+  console.log('\nIstniejące pytania ([źródło] kategoria | pytanie → odpowiedź). Wzorem stylu są pytania [program]:');
+  for (const c of base) console.log(`  [${c.src || '?'}] ${c.k} | ${c.p} → ${c.o}`);
   process.exit(0);
 }
 if (!arg) { console.error('Podaj plik z nowymi pytaniami albo --statystyki.'); process.exit(1); }
@@ -49,7 +41,7 @@ for (const [i, raw] of fresh.entries()) {
   if (err.length) { errors.push(`${n} ${c.p}\n     ✗ ${err.join('; ')}`); continue; }
   if (answers.has(plain(c.o))) warnings.push(`${n} ta sama odpowiedź „${c.o}” co w: ${answers.get(plain(c.o))}`);
   known.add(id(c.p));
-  ok.push({ ...c, ai: true });
+  ok.push({ ...c, src: 'ai' });
 }
 
 if (warnings.length) console.log('Uwaga — możliwe duble faktów (sprawdź, czy to inne pytanie o to samo):\n  ' + warnings.join('\n  '));
@@ -58,5 +50,5 @@ if (flag === '--sprawdz') { console.log(`\nPoprawnych: ${ok.length}/${fresh.leng
 if (errors.length) { console.log('\nNic nie zapisano — popraw odrzucone i uruchom ponownie.'); process.exit(2); }
 
 const all = [...base, ...ok];
-writeFileSync(FILE, '[\n' + all.map(c => '  ' + JSON.stringify(c)).join(',\n') + '\n]\n');
+zapisz(all);
 console.log(`Dopisano ${ok.length} pytań → pytania.json ma teraz ${all.length}.`);
