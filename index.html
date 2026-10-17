@@ -307,6 +307,7 @@
     k: String(c.k || 'Inne').trim(), p: String(c.p || '').trim(), o: String(c.o || '').trim(),
     h: Array.isArray(c.h) && c.h.length >= 2 ? c.h.map(x => String(x).trim()).filter(Boolean) : null,
     z: c.z ? String(c.z).trim() : '',
+    ai: !!c.ai,
   });
 
   let base = [];
@@ -440,7 +441,8 @@
     const c = deck[pos];
     $('pPos').textContent = `Pytanie ${pos + 1} / ${deck.length}`;
     $('pScore').textContent = `✓ ${okCount}`;
-    $('cCat').textContent = c.k;
+    $('cCat').textContent = c.k + (c.ai ? ' · AI' : '');
+    $('cCat').title = c.ai ? 'Pytanie wygenerowane przez AI — jeśli coś się nie zgadza, zgłoś błąd' : '';
     $('cQ').textContent = c.p;
     $('cA').textContent = c.o; $('cA').classList.add('hidden');
     $('cSrc').classList.add('hidden');
