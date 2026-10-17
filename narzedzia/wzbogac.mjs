@@ -32,7 +32,14 @@ if (arg === '--wiki') {
   for (let i = 0; i < titles.length; i += 50) {
     const chunk = titles.slice(i, i + 50);
     const url = 'https://pl.wikipedia.org/w/api.php?action=query&format=json&redirects=1&titles=' + encodeURIComponent(chunk.join('|'));
-    const r = await (await fetch(url, { headers: { 'User-Agent': 'AwanturaFiszki/1.0 (prywatne narzędzie do nauki)' } })).json();
+    // API Wikipedii limituje zapytania — paczki po 50 tytułów z przerwą i ponawianiem
+    let r = null;
+    for (let proba = 1; proba <= 5 && !r; proba++) {
+      await new Promise(ok => setTimeout(ok, 1500 * proba));
+      const res = await fetch(url, { headers: { 'User-Agent': 'AwanturaFiszki/1.0 (private study tool; github.com/gaacek123-jpg/Awantura-Fiszki)' } });
+      if (res.ok) { try { r = await res.json(); } catch { r = null; } }
+    }
+    if (!r?.query) { console.error('Wikipedia nie odpowiada — spróbuj później. Nic nie zapisano.'); process.exit(1); }
     const norm = new Map((r.query.normalized || []).map(x => [x.from, x.to]));
     const redir = new Map((r.query.redirects || []).map(x => [x.from, x.to]));
     const pages = Object.values(r.query.pages);
