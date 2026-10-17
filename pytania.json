@@ -78,7 +78,7 @@
   {"k":"Przyroda","p":"Do jakiego gatunku należy najwyższe znane drzewo świata, Hyperion?","o":"Sekwoja wieczniezielona"},
   {"k":"Astronomia","p":"Jak nazywa się największy księżyc Saturna?","o":"Tytan","h":["Enceladus","Tytan","Ganimedes","Rea"]},
   {"k":"Astronomia","p":"Jak nazywa się gwiazda położona najbliżej Słońca?","o":"Proxima Centauri"},
-  {"k":"Astronomia","p":"Która planeta obraca się wokół własnej osi w kierunku przeciwnym niż większość planet?","o":"Wenus","h":["Mars","Wenus","Neptun","Merkury"]},
+  {"k":"Astronomia","p":"Które dwie planety Układu Słonecznego obracają się wokół własnej osi w kierunku przeciwnym niż pozostałe?","o":"Wenus i Uran","h":["Mars i Neptun","Wenus i Uran","Merkury i Wenus","Uran i Neptun"]},
   {"k":"Astronomia","p":"Jak nazywa się duża galaktyka spiralna, najbliższa Drodze Mlecznej i widoczna gołym okiem?","o":"Galaktyka Andromedy"},
   {"k":"Mitologia","p":"Jak nazywał się trójgłowy pies strzegący wejścia do Hadesu?","o":"Cerber"},
   {"k":"Mitologia","p":"Kto dał Tezeuszowi kłębek nici, by wydostał się z labiryntu Minotaura?","o":"Ariadna","h":["Fedra","Ariadna","Medea","Penelopa"]},

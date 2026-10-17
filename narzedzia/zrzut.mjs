@@ -20,7 +20,17 @@ const known = new Set(base.map(id));
 const fresh = shared.filter(c => c.p && c.o && !known.has(id(c)))
   .map(({ k, p, o, h, z, a }) => Object.fromEntries(Object.entries({ k: k || 'Inne', p, o, h, z, a }).filter(([, v]) => v)));
 
-if (!fresh.length) { console.log(`Nic nowego (w bazie: ${shared.length}, w pytania.json: ${base.length}).`); process.exit(0); }
-const all = [...base, ...fresh];
-writeFileSync(FILE, '[\n' + all.map(c => '  ' + JSON.stringify(c)).join(',\n') + '\n]\n');
-console.log(`Dopisano ${fresh.length} pytań → pytania.json ma teraz ${all.length}.`);
+if (!fresh.length) console.log(`Nic nowego (w bazie: ${shared.length}, w pytania.json: ${base.length}).`);
+else {
+  const all = [...base, ...fresh];
+  writeFileSync(FILE, '[\n' + all.map(c => '  ' + JSON.stringify(c)).join(',\n') + '\n]\n');
+  console.log(`Dopisano ${fresh.length} pytań → pytania.json ma teraz ${all.length}.`);
+}
+
+// Otwarte zgłoszenia błędów — do poprawienia ręcznie w pytania.json, potem „Załatwione” w appce
+const rep = await fetch(DB.replace('/pytania.json', '/zgloszenia.json'));
+const reports = rep.ok ? Object.values((await rep.json()) || {}) : [];
+if (reports.length) {
+  console.log(`\nZgłoszone błędy (${reports.length}):`);
+  for (const r of reports) console.log(`- [${r.k || ''}] ${r.p}\n    odp.: ${r.o}\n    ⚑ ${r.u}${r.a ? ` (${r.a})` : ''}`);
+}

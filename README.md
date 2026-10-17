@@ -32,8 +32,18 @@ Reguły dla tej gałęzi (obok istniejącego `dyzury`):
       ".write": true,
       ".validate": "newData.child('p').isString() && newData.child('p').val().length <= 500 && newData.child('o').isString() && newData.child('o').val().length <= 300"
     }
+  },
+  "zgloszenia": {
+    "$id": {
+      ".write": true,
+      ".validate": "newData.child('u').isString() && newData.child('u').val().length <= 1000"
+    }
   }
 }
 ```
+
+## Zgłaszanie błędów
+Po odkryciu odpowiedzi jest przycisk „⚑ Zgłoś błąd w tym pytaniu”. Zgłoszenie widać na karcie przy tym pytaniu i na liście w zakładce „Pytania”.
+`node narzedzia/zrzut.mjs` też wypisuje otwarte zgłoszenia. Po poprawce w `pytania.json` kliknij „Załatwione”.
 
 Baza jest otwarta, tak jak w Planie sprzątania: kto zna adres, może dopisywać i usuwać pytania. Postęp nauki zostaje tylko na telefonie.

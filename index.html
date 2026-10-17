@@ -108,6 +108,11 @@
   }
   code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
   details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+  .link { background: none; color: var(--muted); font-size: 14px; padding: 6px; }
+  .flag { font-size: 14px; color: #ffb4b6; background: rgba(229, 72, 77, .12); border: 1px solid rgba(229, 72, 77, .4); border-radius: 10px; padding: 8px 10px; }
+  .flag div + div { margin-top: 4px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; width: min(520px, calc(100% - 32px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
 </style>
 </head>
 <body>
@@ -183,6 +188,7 @@
       <div class="spacer"></div>
       <div class="a hidden" id="cA"></div>
       <div class="src hidden" id="cSrc"></div>
+      <div class="flag hidden" id="cFlag"></div>
     </div>
 
     <div class="actions" id="askActions">
@@ -194,8 +200,21 @@
         <button class="bad" id="btnBad">Nie wiedziałem</button>
         <button class="ok" id="btnOk">Wiedziałem</button>
       </div>
+      <button class="link" id="btnReport">⚑ Zgłoś błąd w tym pytaniu</button>
     </div>
   </section>
+
+  <dialog id="reportDlg">
+    <div class="opts">
+      <h2 style="margin:0">Zgłoś błąd</h2>
+      <p class="small muted" id="rdQ" style="margin:0"></p>
+      <textarea id="rdText" maxlength="1000" placeholder="Co jest nie tak? np. „Uran też obraca się wstecznie”" style="font-family:inherit;font-size:16px;min-height:110px"></textarea>
+      <div class="row">
+        <button type="button" class="ghost" id="rdCancel">Anuluj</button>
+        <button type="button" class="primary" id="rdSend">Wyślij</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- WYNIK -->
   <section id="result" class="hidden">
@@ -245,6 +264,9 @@
       </div>
     </div>
 
+    <h2>Zgłoszone błędy (<span id="repCount">0</span>)</h2>
+    <div class="list" id="repList"></div>
+
     <h2>Wspólne pytania drużyny (<span id="customCount">0</span>)</h2>
     <div class="panel opts">
       <p class="small muted" style="margin:0">Wszystko, co dodacie tutaj, trafia do wspólnej bazy i każdy widzi to u siebie po odświeżeniu.</p>
@@ -268,10 +290,12 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  // Wspólna baza drużyny: Firebase RTDB projektu Planu sprzątania, osobna gałąź awantura/pytania (REST, bez SDK)
-  const DB = 'https://plan-dyzurow-default-rtdb.europe-west1.firebasedatabase.app/awantura/pytania';
-  // custom = pytania dodane na tym urządzeniu, jeszcze niewysłane do bazy (kolejka offline)
-  const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', shared: 'awantura.shared', settings: 'awantura.settings' };
+  // Wspólna baza drużyny: Firebase RTDB projektu Planu sprzątania, osobna gałąź awantura/ (REST, bez SDK)
+  const ROOT = 'https://plan-dyzurow-default-rtdb.europe-west1.firebasedatabase.app/awantura';
+  const DB = ROOT + '/pytania', REP = ROOT + '/zgloszenia';
+  // custom / repQueue = pytania i zgłoszenia z tego urządzenia, jeszcze niewysłane do bazy (kolejka offline)
+  const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', shared: 'awantura.shared', settings: 'awantura.settings',
+                reports: 'awantura.reports', repQueue: 'awantura.repQueue' };
   const MAX_BOX = 4; // Leitner: 0 = nowe/źle, 4 = opanowane na pewno
 
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
@@ -288,6 +312,8 @@
   let base = [];
   let custom = load(KEY.custom, []).map(c => ({ ...c, _id: c._id || hash(String(c.p).trim().toLowerCase()) }));
   let shared = load(KEY.shared, {});
+  let reports = load(KEY.reports, {});
+  let repQueue = load(KEY.repQueue, []);
   let progress = load(KEY.prog, {});
   let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null, name: '' }, load(KEY.settings, {}));
   let sync = { at: 0, error: '' };
@@ -446,9 +472,58 @@
       const v = h.dataset.h.toLowerCase();
       if (answer === v || answer.startsWith(v + ' ') || answer.startsWith(v + ' (')) h.classList.add('right');
     });
+    renderFlag(c);
     $('askActions').classList.add('hidden');
     $('judgeActions').classList.remove('hidden');
   }
+
+  // ---------- zgłoszenia błędów ----------
+  const allReports = () => [
+    ...Object.entries(reports).map(([id, r]) => ({ ...r, _id: id, pending: false })),
+    ...repQueue.map(r => ({ ...r, pending: true })),
+  ].sort((a, b) => (b.t || 0) - (a.t || 0));
+  function renderFlag(c) {
+    const rs = allReports().filter(r => r.q === c.id);
+    $('cFlag').innerHTML = rs.map(r => `<div>⚑ ${esc(r.u)}${r.a ? ` <span class="muted">— ${esc(r.a)}</span>` : ''}</div>`).join('');
+    $('cFlag').classList.toggle('hidden', !rs.length);
+  }
+  $('btnReport').onclick = () => {
+    const c = deck[pos];
+    $('rdQ').textContent = `${c.p} → ${c.o}`;
+    $('rdText').value = '';
+    $('reportDlg').showModal();
+  };
+  $('rdCancel').onclick = () => $('reportDlg').close();
+  $('rdSend').onclick = () => {
+    const u = $('rdText').value.trim();
+    if (!u) { toast('Opisz, co jest nie tak.'); return; }
+    $('reportDlg').close();
+    const c = deck[pos];
+    repQueue.push({ _id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    q: c.id, k: c.k, p: c.p, o: c.o, u: u.slice(0, 1000), a: settings.name || '', t: Date.now() });
+    save(KEY.repQueue, repQueue);
+    renderFlag(c); toast('Dzięki — zgłoszenie zapisane.');
+    syncAll();
+  };
+  function renderReports() {
+    const rs = allReports();
+    $('repCount').textContent = rs.length;
+    $('repList').innerHTML = rs.length ? rs.map(r =>
+      `<div class="item"><div>${esc(r.p)}<small>→ ${esc(r.o)} · ${esc(r.k || '')}</small>` +
+      `<small style="color:#ffb4b6">⚑ ${esc(r.u)}${r.a ? ` — ${esc(r.a)}` : ''}${r.pending ? ' · <b style="color:var(--gold)">czeka na wysłanie</b>' : ''}</small></div>` +
+      `<button class="icon ghost" data-rep="${esc(r._id)}" data-pending="${r.pending ? 1 : ''}">Załatwione</button></div>`
+    ).join('') : '<p class="muted small">Brak zgłoszeń.</p>';
+  }
+  $('repList').onclick = async e => {
+    const b = e.target.closest('[data-rep]'); if (!b) return;
+    const id = b.dataset.rep;
+    if (b.dataset.pending) { repQueue = repQueue.filter(r => r._id !== id); save(KEY.repQueue, repQueue); renderReports(); return; }
+    try {
+      const r = await fetch(`${REP}/${encodeURIComponent(id)}.json`, { method: 'DELETE' });
+      if (!r.ok) throw new Error(r.status);
+      delete reports[id]; save(KEY.reports, reports); renderReports();
+    } catch { toast('Nie udało się — brak połączenia z bazą.'); }
+  };
 
   function judge(ok) {
     const c = deck[pos];
@@ -508,12 +583,13 @@
       `</small></div><button class="icon ghost" data-del="${esc(c._id)}" data-kind="${kind}">Usuń</button></div>`;
     const html = custom.map(c => row(c, 'pending')).join('') + sharedList.map(c => row(c, 'shared')).join('');
     $('customList').innerHTML = html || '<p class="muted small">Jeszcze nic. Dodaj pytanie albo zaimportuj listę.</p>';
+    renderReports();
     renderSync();
   }
   function renderSync() {
     const t = sync.at ? new Date(sync.at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) : '';
     $('syncStatus').textContent = sync.error
-      ? `Brak połączenia z bazą (${sync.error})` + (custom.length ? ` · ${custom.length} czeka na wysłanie` : '')
+      ? `Brak połączenia z bazą (${sync.error})` + (custom.length + repQueue.length ? ` · ${custom.length + repQueue.length} czeka na wysłanie` : '')
       : sync.at ? `Zsynchronizowano o ${t}` : 'Łączę z bazą…';
   }
   $('customList').onclick = async e => {
@@ -552,23 +628,31 @@
   }
 
   // ---------- wspólna baza ----------
-  async function pushPending() {
-    if (!custom.length) return;
+  const httpError = r => new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);
+  async function patch(url, list) {
     const body = {};
-    for (const c of custom) {
-      const { _id, ...rest } = c;
-      body[_id || hash(c.p.toLowerCase())] = { ...rest, t: rest.t || Date.now() };
+    for (const { _id, ...rest } of list) body[_id] = { ...rest, t: rest.t || Date.now() };
+    const r = await fetch(`${url}.json`, { method: 'PATCH', body: JSON.stringify(body) });
+    if (!r.ok) throw httpError(r);
+    return body;
+  }
+  async function pushPending() {
+    if (custom.length) {
+      Object.assign(shared, await patch(DB, custom));
+      custom = []; save(KEY.custom, custom); save(KEY.shared, shared);
     }
-    const r = await fetch(`${DB}.json`, { method: 'PATCH', body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);
-    Object.assign(shared, body);
-    custom = []; save(KEY.custom, custom); save(KEY.shared, shared);
+    if (repQueue.length) {
+      Object.assign(reports, await patch(REP, repQueue));
+      repQueue = []; save(KEY.repQueue, repQueue); save(KEY.reports, reports);
+    }
   }
   async function pullShared() {
-    const r = await fetch(`${DB}.json`, { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);
-    shared = (await r.json()) || {};
-    save(KEY.shared, shared);
+    const [rq, rr] = await Promise.all([fetch(`${DB}.json`, { cache: 'no-store' }), fetch(`${REP}.json`, { cache: 'no-store' })]);
+    if (!rq.ok) throw httpError(rq);
+    if (!rr.ok) throw httpError(rr);
+    shared = (await rq.json()) || {};
+    reports = (await rr.json()) || {};
+    save(KEY.shared, shared); save(KEY.reports, reports);
   }
   let syncing = null;
   function syncAll() {
