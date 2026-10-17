@@ -651,6 +651,7 @@
     $('stStatus').textContent = 'Ładuję…';
     $('stBody').innerHTML = '';
     await syncAll();
+    if (ansQueue.length && userKey()) await syncAll(); // odpowiedzi dodane w trakcie poprzedniej wysyłki
     let team = null;
     try { const r = await fetch(`${ANS}.json`, { cache: 'no-store' }); if (r.ok) team = (await r.json()) || {}; } catch {}
     const me = userKey();
@@ -751,6 +752,7 @@
 
   function finish() {
     stopTimer();
+    if (ansQueue.length) syncAll(); // wynik rundy od razu do statystyk drużyny
     const n = answered;
     $('rScore').textContent = `${okCount} / ${n}` + (okHint ? ` (w tym ${okHint} z podpowiedzią)` : '');
     const pct = n ? okCount / n : 0;
