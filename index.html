@@ -109,6 +109,17 @@
   code { background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
   details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   .link { background: none; color: var(--muted); font-size: 14px; padding: 6px; }
+  .expl { font-size: 15px; line-height: 1.45; background: rgba(255, 255, 255, .04); border-radius: 10px; padding: 10px 12px; }
+  .tm { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tm a { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; text-decoration: none; }
+  .tag { font-size: 12px; color: var(--gold); }
+  .srow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; margin-bottom: 9px; font-size: 14px; }
+  .srow .bar { grid-column: 1 / -1; }
+  .bar.bad > div { background: var(--bad); }
+  .bar.ok > div { background: var(--ok); }
+  table.team { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.team td, table.team th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.team th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
   .flag { font-size: 14px; color: #ffb4b6; background: rgba(229, 72, 77, .12); border: 1px solid rgba(229, 72, 77, .4); border-radius: 10px; padding: 8px 10px; }
   .flag div + div { margin-top: 4px; }
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; width: min(520px, calc(100% - 32px)); }
@@ -122,7 +133,10 @@
   <section id="home">
     <header>
       <h1>Awantura <b>o kasę</b> · fiszki</h1>
-      <button class="icon ghost" data-go="manage">Pytania</button>
+      <div class="row" style="flex:0 0 auto;gap:6px">
+        <button class="icon ghost" id="btnStats">Statystyki</button>
+        <button class="icon ghost" data-go="manage">Pytania</button>
+      </div>
     </header>
 
     <div class="stats">
@@ -192,6 +206,7 @@
       <div class="spacer"></div>
       <div class="a hidden" id="cA"></div>
       <div class="src hidden" id="cSrc"></div>
+      <div class="expl hidden" id="cExpl"></div>
       <div class="flag hidden" id="cFlag"></div>
     </div>
 
@@ -216,6 +231,28 @@
       <div class="row">
         <button type="button" class="ghost" id="rdCancel">Anuluj</button>
         <button type="button" class="primary" id="rdSend">Wyślij</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- STATYSTYKI -->
+  <section id="stats" class="hidden">
+    <header>
+      <button class="icon ghost" data-go="home">← Wróć</button>
+      <h1>Statystyki</h1>
+    </header>
+    <p class="small muted" id="stStatus"></p>
+    <div id="stBody"></div>
+  </section>
+
+  <dialog id="nameDlg">
+    <div class="opts">
+      <h2 style="margin:0">Jak masz na imię?</h2>
+      <p class="small muted" style="margin:0">Twoje odpowiedzi trafią do statystyk drużyny: mocne i słabe strony, co poczytać, kto jest najlepszy w danej kategorii. Imię możesz zmienić w zakładce „Pytania”.</p>
+      <input id="ndName" maxlength="40" placeholder="Imię">
+      <div class="row">
+        <button type="button" class="ghost" id="ndSkip">Bez statystyk</button>
+        <button type="button" class="primary" id="ndSave">Zapisz</button>
       </div>
     </div>
   </dialog>
@@ -299,7 +336,10 @@
   const DB = ROOT + '/pytania', REP = ROOT + '/zgloszenia';
   // custom / repQueue = pytania i zgłoszenia z tego urządzenia, jeszcze niewysłane do bazy (kolejka offline)
   const KEY = { prog: 'awantura.progress', custom: 'awantura.custom', shared: 'awantura.shared', settings: 'awantura.settings',
-                reports: 'awantura.reports', repQueue: 'awantura.repQueue' };
+                reports: 'awantura.reports', repQueue: 'awantura.repQueue', ansQueue: 'awantura.ansQueue', myAns: 'awantura.myAnswers' };
+  // Odpowiedzi do statystyk: awantura/odpowiedzi/<osoba>/<id> = { q, k, s: źródło, ok, h: użyta podpowiedź, ms, t, m: tryb }
+  const ANS = ROOT + '/odpowiedzi';
+  const wiki = t => 'https://pl.wikipedia.org/wiki/' + encodeURIComponent(t.replace(/ /g, '_'));
   const MAX_BOX = 4; // Leitner: 0 = nowe/źle, 4 = opanowane na pewno
 
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
@@ -311,6 +351,8 @@
     k: String(c.k || 'Inne').trim(), p: String(c.p || '').trim(), o: String(c.o || '').trim(),
     h: Array.isArray(c.h) && c.h.length >= 2 ? c.h.map(x => String(x).trim()).filter(Boolean) : null,
     z: c.z ? String(c.z).trim() : '',
+    w: c.w ? String(c.w).trim() : '',
+    tm: Array.isArray(c.tm) ? c.tm.map(String).filter(Boolean) : [],
   });
   // Źródło: program = spisane z odcinków, ai = wygenerowane, user = dodane przez drużynę w appce
   const SRC = { program: 'Z programu', ai: 'AI', user: 'Od drużyny' };
@@ -321,9 +363,11 @@
   let shared = load(KEY.shared, {});
   let reports = load(KEY.reports, {});
   let repQueue = load(KEY.repQueue, []);
+  let ansQueue = load(KEY.ansQueue, []);
+  let myAnswers = load(KEY.myAns, []);
   let progress = load(KEY.prog, {});
   let settings = Object.assign({ timer: 60, count: 20, order: 'weak', cats: null, srcs: null, name: '' }, load(KEY.settings, {}));
-  let sync = { at: 0, error: '' };
+  let sync = { at: 0, error: '' }, ansError = '';
 
   function allCards() {
     const seen = new Set(), out = [];
@@ -347,7 +391,7 @@
   const isKnown = id => box(id) >= 3;
 
   // ---------- nawigacja ----------
-  const screens = ['home', 'play', 'result', 'manage'];
+  const screens = ['home', 'play', 'result', 'manage', 'stats'];
   let screen = 'home';
   function go(name) {
     screen = name;
@@ -442,7 +486,8 @@
   $('optOrder').onchange = e => { settings.order = e.target.value; save(KEY.settings, settings); };
 
   // ---------- runda ----------
-  let deck = [], pos = 0, answered = 0, okCount = 0, missed = [], lastMode = 'normal';
+  let deck = [], pos = 0, answered = 0, okCount = 0, okHint = 0, missed = [], lastMode = 'normal';
+  let hintUsed = false, shownAt = 0, revealMs = 0;
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const MARATHON_RETRY = 6; // w maratonie pytanie z błędem wraca po tylu kolejnych pytaniach
 
@@ -455,13 +500,24 @@
     if (settings.order === 'weak') pool.sort((a, b) => box(a.id) - box(b.id)); // sort stabilny → w obrębie pudełka zostaje losowo
     return pool;
   }
+  // Przed pierwszą rundą pytamy raz o imię — bez niego odpowiedzi nie trafiają do statystyk drużyny
+  const userKey = () => settings.name ? settings.name.trim().toLowerCase().replace(/[.#$\[\]\/\s]+/g, '_') : '';
+  function askName(then) {
+    if (settings.name || settings.askedName) return then();
+    $('ndName').value = '';
+    $('nameDlg').showModal();
+    const done = () => { $('nameDlg').close(); settings.askedName = true; save(KEY.settings, settings); then(); };
+    $('ndSave').onclick = () => { const n = $('ndName').value.trim().slice(0, 40); if (!n) { toast('Wpisz imię albo wybierz „Bez statystyk”.'); return; } settings.name = n; done(); };
+    $('ndSkip').onclick = done;
+  }
   function startRound(mode) {
+    if (!settings.name && !settings.askedName) return askName(() => startRound(mode));
     lastMode = mode;
     const pool = buildPool(mode);
     if (!pool.length) { toast(mode === 'review' ? 'Brak pytań do powtórki — dobra robota.' : 'Brak pytań w wybranych kategoriach.'); return; }
     // Maraton: cała pula bez limitu, a po jej wyczerpaniu kolejne przetasowanie (najsłabsze znów na początku)
     deck = mode === 'marathon' || !settings.count ? pool : pool.slice(0, settings.count);
-    pos = 0; answered = 0; okCount = 0; missed = [];
+    pos = 0; answered = 0; okCount = 0; okHint = 0; missed = [];
     go('play'); showCard();
   }
   $('btnStart').onclick = () => startRound('normal');
@@ -481,15 +537,19 @@
     $('cSrc').classList.add('hidden');
     $('cSrc').innerHTML = c.z ? `Źródło: <a href="${esc(c.z)}" target="_blank" rel="noopener">${esc(c.z)}</a>` : '';
     $('cHints').classList.add('hidden'); $('cHints').innerHTML = '';
+    $('cExpl').classList.add('hidden'); $('cExpl').innerHTML = '';
     $('btnHint').classList.toggle('hidden', !c.h);
     $('btnHint').disabled = false;
+    $('btnOk').textContent = 'Wiedziałem';
     $('askActions').classList.remove('hidden');
     $('judgeActions').classList.add('hidden');
+    hintUsed = false; shownAt = Date.now(); revealMs = 0;
     startTimer();
   }
 
   $('btnHint').onclick = () => {
     const c = deck[pos];
+    hintUsed = true;
     $('cHints').innerHTML = c.h.map(h => `<div class="hint" data-h="${esc(h)}">${esc(h)}</div>`).join('');
     $('cHints').classList.remove('hidden');
     $('btnHint').disabled = true;
@@ -508,6 +568,13 @@
       if (answer === v || answer.startsWith(v + ' ') || answer.startsWith(v + ' (')) h.classList.add('right');
     });
     renderFlag(c);
+    revealMs = Date.now() - shownAt;
+    if (c.w || c.tm.length) {
+      $('cExpl').innerHTML = (c.w ? esc(c.w) : '') +
+        (c.tm.length ? `<div class="tm">${c.tm.map(t => `<a href="${wiki(t)}" target="_blank" rel="noopener">📖 ${esc(t)}</a>`).join('')}</div>` : '');
+      $('cExpl').classList.remove('hidden');
+    }
+    $('btnOk').textContent = hintUsed ? 'Wiedziałem (z podpowiedzią)' : 'Wiedziałem';
     $('askActions').classList.add('hidden');
     $('judgeActions').classList.remove('hidden');
   }
@@ -560,13 +627,112 @@
     } catch { toast('Nie udało się — brak połączenia z bazą.'); }
   };
 
+  // ---------- statystyki ----------
+  // Wynik: dobrze bez podpowiedzi = 1, dobrze z podpowiedzią = 0,5, źle = 0
+  const pts = a => a.ok ? (a.h ? 0.5 : 1) : 0;
+  const pct = x => Math.round(x * 100) + '%';
+  function summarize(list) {
+    const s = { n: list.length, score: 0, hint: 0, ms: 0, cat: {}, src: {} };
+    for (const a of list) {
+      const p = pts(a);
+      s.score += p; s.hint += a.h ? 1 : 0; s.ms += a.ms || 0;
+      for (const [key, map] of [[a.k, s.cat], [a.s, s.src]]) {
+        if (!key) continue;
+        const m = map[key] || (map[key] = { n: 0, score: 0 });
+        m.n++; m.score += p;
+      }
+    }
+    return s;
+  }
+  const bar = (label, val, n, cls = '') => `<div class="srow"><span>${esc(label)}</span><span class="muted">${pct(val)} · ${n}</span><div class="bar ${cls}"><div style="width:${val * 100}%"></div></div></div>`;
+
+  async function loadStats() {
+    go('stats');
+    $('stStatus').textContent = 'Ładuję…';
+    $('stBody').innerHTML = '';
+    await syncAll();
+    let team = null;
+    try { const r = await fetch(`${ANS}.json`, { cache: 'no-store' }); if (r.ok) team = (await r.json()) || {}; } catch {}
+    const me = userKey();
+    // Własne odpowiedzi: z bazy (wszystkie urządzenia) + jeszcze niewysłane; bez imienia/bazy — tylko z tego telefonu
+    const mine = me && team ? [...Object.values(team[me] || {}), ...ansQueue] : myAnswers;
+    $('stStatus').textContent = !me ? 'Nie podano imienia — pokazuję tylko odpowiedzi z tego telefonu. Imię ustawisz w zakładce „Pytania”.'
+      : !team ? `Brak połączenia z bazą${ansError ? ` (${ansError})` : ''} — pokazuję odpowiedzi z tego telefonu.`
+      : ansQueue.length ? `${ansQueue.length} odpowiedzi czeka na wysłanie do bazy${ansError ? ` (${ansError})` : ''} — są już wliczone poniżej.` : '';
+    $('stBody').innerHTML = renderPerson(settings.name || 'Ten telefon', mine) + (team ? renderTeam(team) : '');
+  }
+  $('btnStats').onclick = loadStats;
+
+  function renderPerson(name, list) {
+    if (!list.length) return `<div class="panel"><p class="muted" style="margin:0">Brak odpowiedzi. Zagraj rundę, a statystyki pojawią się tutaj.</p></div>`;
+    const s = summarize(list);
+    const cats = Object.entries(s.cat).map(([k, v]) => ({ k, n: v.n, v: v.score / v.n })).sort((a, b) => b.v - a.v);
+    const minN = cats.filter(c => c.n >= 5).length >= 4 ? 5 : 3;
+    const rated = cats.filter(c => c.n >= minN);
+    const strong = rated.slice(0, 3), weak = rated.slice(-3).reverse().filter(c => !strong.includes(c));
+    // Co poczytać: tematy z pytań, na których było źle albo pomogła podpowiedź
+    const byId = new Map(allCards().map(c => [c.id, c]));
+    const topics = new Map();
+    for (const a of list) {
+      if (a.ok && !a.h) continue;
+      const c = byId.get(a.q); if (!c) continue;
+      for (const t of c.tm) { const x = topics.get(t) || { t, k: c.k, n: 0 }; x.n += a.ok ? 0.5 : 1; topics.set(t, x); }
+    }
+    const read = [...topics.values()].sort((a, b) => b.n - a.n).slice(0, 12);
+    const src = Object.entries(s.src).map(([k, v]) => bar(SRC[k] || k, v.score / v.n, v.n)).join('');
+    return `<h2>${esc(name)}</h2>
+      <div class="stats">
+        <div class="stat"><b>${s.n}</b><span>odpowiedzi</span></div>
+        <div class="stat"><b>${pct(s.score / s.n)}</b><span>skuteczność</span></div>
+        <div class="stat"><b>${pct(s.hint / s.n)}</b><span>z podpowiedzią</span></div>
+      </div>
+      <p class="small muted">Skuteczność: dobrze bez podpowiedzi = 1, z podpowiedzią = ½, źle = 0. Średni czas do odkrycia odpowiedzi: ${Math.round(s.ms / s.n / 1000)} s.</p>
+      ${rated.length ? `<h2>Mocne strony</h2><div class="panel">${strong.map(c => bar(c.k, c.v, c.n, 'ok')).join('')}</div>
+      ${weak.length ? `<h2>Do podciągnięcia</h2><div class="panel">${weak.map(c => bar(c.k, c.v, c.n, 'bad')).join('')}</div>` : ''}`
+        : `<p class="small muted">Mocne i słabe strony pokażą się, gdy w kategoriach uzbiera się po ${minN} odpowiedzi.</p>`}
+      ${read.length ? `<h2>Co poczytać</h2><div class="panel"><p class="small muted" style="margin-top:0">Tematy z pytań, które sprawiły kłopot:</p><div class="tm">${read.map(x => `<a href="${wiki(x.t)}" target="_blank" rel="noopener">📖 ${esc(x.t)}</a>`).join('')}</div></div>` : ''}
+      <h2>Wszystkie kategorie</h2><div class="panel">${cats.map(c => bar(c.k, c.v, c.n)).join('')}</div>
+      <h2>Według źródła pytań</h2><div class="panel">${src}</div>`;
+  }
+
+  function renderTeam(team) {
+    const people = Object.entries(team).map(([key, obj]) => ({ key, list: Object.values(obj || {}) })).filter(p => p.list.length);
+    if (!people.length) return '';
+    const sums = people.map(p => ({ ...p, s: summarize(p.list) }));
+    const rows = sums.sort((a, b) => b.s.score / b.s.n - a.s.score / a.s.n)
+      .map(p => `<tr><td>${esc(p.key)}</td><td>${p.s.n}</td><td>${pct(p.s.score / p.s.n)}</td><td>${pct(p.s.hint / p.s.n)}</td></tr>`).join('');
+    // Kto w czym najmocniejszy — przydaje się przy licytacji kategorii
+    const allCats = [...new Set(sums.flatMap(p => Object.keys(p.s.cat)))].sort((a, b) => a.localeCompare(b, 'pl'));
+    const best = allCats.map(k => {
+      const ranked = sums.map(p => ({ key: p.key, c: p.s.cat[k] })).filter(x => x.c && x.c.n >= 3)
+        .map(x => ({ key: x.key, v: x.c.score / x.c.n, n: x.c.n })).sort((a, b) => b.v - a.v);
+      return ranked.length ? `<tr><td>${esc(k)}</td><td><b>${esc(ranked[0].key)}</b> ${pct(ranked[0].v)}</td><td class="muted">${ranked[1] ? `${esc(ranked[1].key)} ${pct(ranked[1].v)}` : '—'}</td></tr>` : '';
+    }).join('');
+    return `<h2>Drużyna</h2><div class="panel"><table class="team"><tr><th>Osoba</th><th>Odp.</th><th>Skut.</th><th>Podp.</th></tr>${rows}</table></div>
+      ${best ? `<h2>Kto w czym najmocniejszy</h2><div class="panel"><p class="small muted" style="margin-top:0">Liczone od 3 odpowiedzi w kategorii.</p><table class="team"><tr><th>Kategoria</th><th>Najlepiej</th><th>Drugi</th></tr>${best}</table></div>` : ''}`;
+  }
+
+  function logAnswer(c, ok) {
+    const a = { q: c.id, k: c.k, s: c.src, ok: ok ? 1 : 0, h: hintUsed ? 1 : 0, ms: Math.min(revealMs, 600000), t: Date.now(), m: lastMode };
+    myAnswers.push(a); if (myAnswers.length > 20000) myAnswers = myAnswers.slice(-20000);
+    save(KEY.myAns, myAnswers);
+    if (!userKey()) return;
+    ansQueue.push({ ...a, _id: 'a' + a.t.toString(36) + Math.random().toString(36).slice(2, 6) });
+    save(KEY.ansQueue, ansQueue);
+    if (ansQueue.length >= 5) syncAll(); // wysyłka paczkami, żeby nie strzelać do bazy po każdym pytaniu
+  }
+
   function judge(ok) {
     const c = deck[pos];
     const p = progress[c.id] || { b: 0, ok: 0, bad: 0 };
-    if (ok) { p.ok++; p.b = Math.min(MAX_BOX, p.b + 1); okCount++; }
+    // Z podpowiedzią — jak w programie, to „kupiona” wiedza: zalicza się, ale nie awansuje pytania (najwyżej wyciąga je z powtórki)
+    if (ok && hintUsed) { p.ok++; p.okHint = (p.okHint || 0) + 1; p.b = Math.max(p.b, 1); okCount++; okHint++; missed.push({ ...c, viaHint: true }); }
+    else if (ok) { p.ok++; p.b = Math.min(MAX_BOX, p.b + 1); okCount++; }
     else { p.bad++; p.b = 0; missed.push(c); }
+    if (hintUsed) p.hint = (p.hint || 0) + 1;
     p.t = Date.now();
     progress[c.id] = p; save(KEY.prog, progress);
+    logAnswer(c, ok);
     answered++;
     if (lastMode === 'marathon') {
       if (!ok) deck.splice(Math.min(deck.length, pos + 1 + MARATHON_RETRY), 0, c);
@@ -586,14 +752,17 @@
   function finish() {
     stopTimer();
     const n = answered;
-    $('rScore').textContent = `${okCount} / ${n}`;
+    $('rScore').textContent = `${okCount} / ${n}` + (okHint ? ` (w tym ${okHint} z podpowiedzią)` : '');
     const pct = n ? okCount / n : 0;
     $('btnAgain').textContent = lastMode === 'marathon' ? 'Kolejny maraton' : 'Kolejna runda';
     // W maratonie to samo pytanie mogło paść kilka razy — na liście „do zapamiętania” wystarczy raz
     missed = missed.filter((c, i) => missed.findIndex(m => m.id === c.id) === i);
     $('rText').textContent = pct >= .8 ? 'Loża mistrzów w zasięgu.' : pct >= .5 ? 'Nieźle — powtórz te, które uciekły.' : 'Jest nad czym pracować. Pytania z błędem wpadły do powtórki.';
     $('rMissed').innerHTML = missed.length
-      ? missed.map(c => `<div class="item"><div>${esc(c.p)}<small>→ <b style="color:var(--gold)">${esc(c.o)}</b> · ${esc(c.k)}</small></div></div>`).join('')
+      ? missed.map(c => `<div class="item"><div>${c.viaHint ? '<span class="tag">💡 z podpowiedzią</span><br>' : ''}${esc(c.p)}<small>→ <b style="color:var(--gold)">${esc(c.o)}</b> · ${esc(c.k)}</small>` +
+          (c.w ? `<small>${esc(c.w)}</small>` : '') +
+          (c.tm.length ? `<div class="tm">${c.tm.map(t => `<a href="${wiki(t)}" target="_blank" rel="noopener">📖 ${esc(t)}</a>`).join('')}</div>` : '') +
+          `</div></div>`).join('')
       : '<p class="muted">Wszystko dobrze.</p>';
     go('result');
   }
@@ -692,6 +861,16 @@
     if (repQueue.length) {
       Object.assign(reports, await patch(REP, repQueue));
       repQueue = []; save(KEY.repQueue, repQueue); save(KEY.reports, reports);
+    }
+    // Odpowiedzi osobno: brak reguły dla „odpowiedzi” nie może blokować synchronizacji pytań
+    if (ansQueue.length && userKey()) {
+      const batch = ansQueue.slice(0, 500);
+      try {
+        await patch(`${ANS}/${encodeURIComponent(userKey())}`, batch);
+        const sent = new Set(batch.map(a => a._id));
+        ansQueue = ansQueue.filter(a => !sent.has(a._id)); save(KEY.ansQueue, ansQueue);
+        ansError = '';
+      } catch (e) { ansError = e.message; }
     }
   }
   async function pullShared() {

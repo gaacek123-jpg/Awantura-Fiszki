@@ -20,7 +20,8 @@ Dostaniesz liczbę pytań w kategoriach (od najmniej licznych) i wszystkie istni
 Zapisz je do pliku `C:\Users\gaace\AwanturaPrep\narzedzia\nowe.json` w formacie:
 ```json
 [
-  { "k": "Geografia", "p": "Treść pytania?", "o": "Odpowiedź", "h": ["Wariant A", "Odpowiedź", "Wariant C", "Wariant D"] }
+  { "k": "Geografia", "p": "Treść pytania?", "o": "Odpowiedź", "h": ["Wariant A", "Odpowiedź", "Wariant C", "Wariant D"],
+    "w": "Wyjaśnienie: dlaczego tak, obliczenie albo kontekst (1–3 zdania).", "tm": ["Tytuł artykułu w polskiej Wikipedii"] }
 ]
 ```
 
@@ -39,6 +40,8 @@ Zasady:
 - **Bez dubli:** nie pytaj o fakt, który już jest w talii, nawet innymi słowami. Sprawdź listę odpowiedzi ze statystyk.
 - **Bez zdjęć i nagrań:** pytanie musi mieć sens jako sam tekst. Nie pisz „ten obraz”, „to zwierzę”, „posłuchaj”.
 - **Podpowiedź `h`:** dokładnie 4 warianty, jak w podpowiedzi w programie. Odpowiedź `o` musi być identyczna z jednym z nich, a pozostałe muszą być wiarygodne (ten sam typ, podobna skala). Pozycję poprawnej odpowiedzi losuj.
+- **Wyjaśnienie `w`:** 1–3 zdania, które pomagają zapamiętać — dlaczego tak jest, obliczenie krok po kroku przy zadaniu albo powiązana ciekawostka. Pułapki („intuicja podpowiada X”) nazwij wprost. Tylko pewne fakty.
+- **Tematy `tm`:** 1–3 dokładne tytuły artykułów z **polskiej** Wikipedii (np. „Mikołaj Kopernik”, „Prawo Archimedesa”) — to linki do nauki i podstawa bazy wiedzy. Lepiej ogólniejszy tytuł, który na pewno istnieje, niż zgadywany.
 - **Język:** poprawna polszczyzna, cudzysłowy „…”. Pytanie kończy się „?”, odpowiedź jest krótka (słowo, nazwa, liczba, krótka fraza).
 
 ## Krok 3 — walidacja i zapis
@@ -48,7 +51,12 @@ node C:\Users\gaace\AwanturaPrep\narzedzia\dodaj.mjs C:\Users\gaace\AwanturaPrep
 - Popraw wszystkie odrzucone pytania.
 - Przy każdej uwadze o dublu zdecyduj, czy to naprawdę inne pytanie. Jeśli to ten sam fakt, wymień je.
 - Gdy wszystko jest czyste, uruchom to samo polecenie bez `--sprawdz`. Skrypt dopisze pytania ze źródłem `"src": "ai"` (w appce: „· AI”).
-- Potem usuń `nowe.json`.
+- Potem usuń `nowe.json`, sprawdź tytuły tematów i odśwież bazę wiedzy:
+```
+node C:\Users\gaace\AwanturaPrep\narzedzia\wzbogac.mjs --wiki
+node C:\Users\gaace\AwanturaPrep\narzedzia\baza-wiedzy.mjs
+```
+`--wiki` poprawia przekierowania i usuwa nieistniejące tytuły (jeśli Wikipedia odpowie „spróbuj później”, pomiń ten krok i wspomnij o tym w raporcie).
 
 ## Krok 4 — publikacja
 ```

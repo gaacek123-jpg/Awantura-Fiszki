@@ -9,20 +9,33 @@ Fiszki dla naszej drużyny przed występem w „Awanturze o kasę”. Statyczna 
 - **Android (Chrome):** menu ⋮ → „Dodaj do ekranu głównego” / „Zainstaluj aplikację”.
 
 ## Jak działa
-- Runda: wybierasz kategorie, czas na odpowiedź (domyślnie 60 s) i liczbę pytań. Przy pytaniach z 4 wariantami jest przycisk „Podpowiedź”.
-- „Wiedziałem” przesuwa pytanie wyżej (system Leitnera, poziomy 0–4). „Nie wiedziałem” wrzuca je do powtórki.
-- Postęp i dopisane pytania zapisują się tylko na danym telefonie (localStorage).
+- **Runda:** wybierasz źródło pytań, kategorie, czas na odpowiedź (domyślnie 60 s) i liczbę pytań.
+- **Maraton:** pytania bez końca, błędne wracają po 6 kolejnych.
+- **Powtórki:** tylko pytania z ostatnią złą odpowiedzią.
+- **Podpowiedź:** każde pytanie ma 4 warianty. Odpowiedź z podpowiedzią zalicza się, ale nie awansuje pytania (system Leitnera, poziomy 0–4) i liczy się w statystykach za pół punktu.
+- **Po odkryciu odpowiedzi:** wyjaśnienie i tematy do poczytania (linki do polskiej Wikipedii).
+- **Statystyki:** skuteczność, mocne i słabe strony, co poczytać, a dla drużyny „kto w czym najmocniejszy”. Wymagają podania imienia; odpowiedzi trafiają do wspólnej bazy.
+- Postęp nauki zostaje na telefonie, a odpowiedzi do statystyk idą do bazy.
 
-## Dodawanie pytań
-- **Z telefonu:** zakładka „Pytania” → dodaj jedno albo wklej wiele w formacie
-  `Kategoria | Pytanie | Odpowiedź | A; B; C; D | link` (dwa ostatnie pola opcjonalne, tabulatory z Excela też działają).
-  Pytanie trafia do wspólnej bazy i cała drużyna widzi je po odświeżeniu. Bez internetu czeka w kolejce na telefonie.
-- **Do pliku:** `node narzedzia/zrzut.mjs` dopisuje pytania z bazy do `pytania.json`, potem commit + push.
-- **Ręcznie:** dopisz do `pytania.json` i zrób push na `main`.
+## Pola pytania (`pytania.json`)
+`k` kategoria · `p` pytanie · `o` odpowiedź · `h` 4 warianty podpowiedzi · `w` wyjaśnienie · `tm` tytuły artykułów polskiej Wikipedii · `src` źródło (`program` / `ai` / `user`) · `a` autor (dla `user`).
+
+## Narzędzia (`narzedzia/`)
+| Skrypt | Do czego |
+|---|---|
+| `import-notatki.mjs [--zapisz]` | pytania z odcinków z notatki Obsidiana → `src: program` |
+| `dodaj.mjs plik.json` / `--statystyki` | walidacja i dopisanie pytań od generatora → `src: ai` |
+| `wzbogac.mjs --stan / --eksport / plik.json / --wiki` | uzupełnianie `h`, `w`, `tm` i weryfikacja tytułów w Wikipedii |
+| `zrzut.mjs` | pytania dodane w appce (baza) → `pytania.json` + lista zgłoszeń |
+| `baza-wiedzy.mjs` | sejf Obsidiana „Baza wiedzy”: notatka na kategorię z tematami i kartami pytań |
+| `analiza.mjs` | analiza odpowiedzi drużyny → notatki w „Baza wiedzy/Analizy” |
+| `oczysc-transkrypt.mjs` | czyszczenie transkryptu odcinka (YouTube, .srt, .vtt) |
+
+Agenci Claude Code: `.claude/agents/awantura-generator.md` (nowe pytania) i `awantura-transkrypt.md` (pytania z transkryptów).
 
 ## Wspólna baza
-Firebase Realtime Database projektu `plan-dyzurow` (ten sam co Plan sprzątania), gałąź `awantura/pytania`, dostęp przez REST.
-Reguły dla tej gałęzi (obok istniejącego `dyzury`):
+Firebase Realtime Database projektu `plan-dyzurow` (ten sam co Plan sprzątania), gałąź `awantura/`, dostęp przez REST.
+Reguły (obok istniejącego `dyzury`):
 
 ```json
 "awantura": {
@@ -38,6 +51,14 @@ Reguły dla tej gałęzi (obok istniejącego `dyzury`):
       ".write": true,
       ".validate": "newData.child('u').isString() && newData.child('u').val().length <= 1000"
     }
+  },
+  "odpowiedzi": {
+    "$osoba": {
+      "$id": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['q', 'ok', 't']) && newData.child('q').isString() && newData.child('q').val().length <= 20"
+      }
+    }
   }
 }
 ```
@@ -46,4 +67,4 @@ Reguły dla tej gałęzi (obok istniejącego `dyzury`):
 Po odkryciu odpowiedzi jest przycisk „⚑ Zgłoś błąd w tym pytaniu”. Zgłoszenie widać na karcie przy tym pytaniu i na liście w zakładce „Pytania”.
 `node narzedzia/zrzut.mjs` też wypisuje otwarte zgłoszenia. Po poprawce w `pytania.json` kliknij „Załatwione”.
 
-Baza jest otwarta, tak jak w Planie sprzątania: kto zna adres, może dopisywać i usuwać pytania. Postęp nauki zostaje tylko na telefonie.
+Baza jest otwarta, tak jak w Planie sprzątania: kto zna adres, może dopisywać i usuwać pytania oraz widzi statystyki drużyny (imiona i odpowiedzi).

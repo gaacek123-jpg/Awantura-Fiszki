@@ -1,7 +1,9 @@
 // Narzędzie dla agenta awantura-generator (i do ręcznego użytku).
 //   node narzedzia/dodaj.mjs --statystyki        → liczba pytań w kategoriach + wszystkie odpowiedzi (do unikania dubli)
 //   node narzedzia/dodaj.mjs <nowe.json> [--sprawdz] → waliduje i dopisuje pytania do pytania.json (z --sprawdz tylko waliduje)
-// Format nowe.json: [{ "k": "Kategoria", "p": "Pytanie?", "o": "Odpowiedź", "h": ["A", "B", "C", "D"] }, ...]
+// Format nowe.json: [{ "k": "Kategoria", "p": "Pytanie?", "o": "Odpowiedź", "h": ["A", "B", "C", "D"],
+//                      "w": "Wyjaśnienie (1–3 zdania).", "tm": ["Tytuł artykułu w pl.wikipedii"] }, ...]
+// Po dopisaniu: node narzedzia/wzbogac.mjs --wiki (weryfikacja tytułów tm) i node narzedzia/baza-wiedzy.mjs
 import { readFileSync } from 'node:fs';
 import { KATEGORIE, ZRODLA, id, wczytaj, zapisz } from './wspolne.mjs';
 
@@ -29,8 +31,11 @@ const ok = [], errors = [], warnings = [];
 for (const [i, raw] of fresh.entries()) {
   const n = `#${i + 1}`;
   const c = { k: String(raw.k || '').trim(), p: String(raw.p || '').trim(), o: String(raw.o || '').trim(),
-              h: Array.isArray(raw.h) ? raw.h.map(x => String(x).trim()) : null };
+              h: Array.isArray(raw.h) ? raw.h.map(x => String(x).trim()) : null,
+              w: String(raw.w || '').trim(), tm: Array.isArray(raw.tm) ? raw.tm.map(x => String(x).trim()).filter(Boolean) : [] };
   const err = [];
+  if (!c.w || c.w.length > 500) err.push('wyjaśnienie w: 1–3 zdania, do 500 znaków');
+  if (!c.tm.length || c.tm.length > 3) err.push('tm: 1–3 tytuły artykułów z polskiej Wikipedii');
   if (!KATEGORIE.includes(c.k)) err.push(`nieznana kategoria „${c.k}”`);
   if (!c.p.endsWith('?')) err.push('pytanie nie kończy się „?”');
   if (c.p.length < 15 || c.p.length > 400) err.push('pytanie za krótkie/za długie');

@@ -18,7 +18,9 @@ function kategoria(raw) {
 // Literówki z notatki — poprawiane przy imporcie (zmiana treści = inne id, więc lista musi zostać, inaczej powstaną duble)
 const POPRAWKI = [[/pierwsiastka/g, 'pierwiastka'], [/sformułowałm/g, 'sformułował'], [/Kolejne roznicę/g, 'Kolejne rocznice'],
   [/źółtkami/g, 'żółtkami'], [/Payton Place/g, 'Peyton Place'], [/Guinessa/g, 'Guinnessa'], [/kobietą wierząca/g, 'kobietą wierzącą'],
-  [/ jakie to miasto/g, ' Jakie to miasto'], [/„Po drugiej stronie\?/g, '„Po drugiej stronie”?'], [/Które\?/g, 'Które?']];
+  [/ jakie to miasto/g, ' Jakie to miasto'], [/„Po drugiej stronie\?/g, '„Po drugiej stronie”?'], [/Które\?/g, 'Które?'],
+  // Błędy merytoryczne w notatce
+  [/Zbigniew Krasiński/g, 'Zygmunt Krasiński'], [/przyjęta w 1923 r\. doktryna/g, 'przyjęta w 1823 r. doktryna']];
 const popraw = s => POPRAWKI.reduce((t, [a, b]) => t.replace(a, b),
   s.replace(/\s+/g, ' ').trim().replace(/Pytanie:\s*/g, '').replace(/\?\.$/, '?'));
 const MEDIA = /^co to jest\??$|to zwierzę|ten obraz|ta aria|na tym zdjęciu|ta budowla|^Ten zawodnik|^Te buty|tego ołtarza|ta rzeźba|tego budynku|ten utwór\?/i;
