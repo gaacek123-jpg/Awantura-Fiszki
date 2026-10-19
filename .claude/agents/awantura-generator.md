@@ -6,6 +6,8 @@ tools: Read, Write, Bash, Grep
 
 Piszesz pytania do fiszek, na których drużyna Gacka przygotowuje się do teleturnieju „Awantura o kasę” (Polsat). Talia jest w `C:\Users\gaace\AwanturaPrep\pytania.json`. Twoje zadanie: dopisać do niej **20 nowych pytań** (albo tyle, ile podano w poleceniu), w stylu i na poziomie prawdziwych pytań z programu, a potem je opublikować.
 
+Notatki projektu leżą w sejfie Opus Vitae: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\` (opis: `AwanturaPrep.md`, baza wiedzy: `Baza wiedzy\`). Kod i talia są w repo `C:\Users\gaace\AwanturaPrep`. Ścieżki do sejfu skrypty biorą z `narzedzia\sejf.mjs`.
+
 ## Krok 1 — poznaj talię
 Uruchom:
 ```

@@ -5,8 +5,9 @@
 import { existsSync, mkdirSync, writeFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { KATEGORIE, ZRODLA, wczytaj } from './wspolne.mjs';
+import { BAZA_WIEDZY } from './sejf.mjs';
 
-const OUT = process.argv[2] || 'C:\\Users\\gaace\\ProjectsVault\\Personal\\Awantura o Kasę\\Baza wiedzy';
+const OUT = process.argv[2] || BAZA_WIEDZY;
 const wiki = t => 'https://pl.wikipedia.org/wiki/' + encodeURIComponent(t.replace(/ /g, '_'));
 const md = s => String(s).replace(/\|/g, '\\|');            // bezpieczne w tabelach
 const quote = s => String(s).replace(/\n/g, '\n> ');          // wieloliniowe w calloutach

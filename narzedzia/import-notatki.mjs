@@ -5,8 +5,9 @@
 // Pytania wymagające zdjęcia lub nagrania („Co to jest?”, „ten obraz”, „ta aria”…) są pomijane.
 import { readFileSync } from 'node:fs';
 import { KATEGORIE, id, wczytaj, zapisz } from './wspolne.mjs';
+import { NOTATKA_PYTANIA } from './sejf.mjs';
 
-const NOTATKA = process.env.AWANTURA_NOTATKA || 'C:\\Users\\gaace\\ProjectsVault\\Personal\\Awantura o Kasę\\Awantura - pytania.md';
+const NOTATKA = process.env.AWANTURA_NOTATKA || NOTATKA_PYTANIA;
 
 const byLower = Object.fromEntries(KATEGORIE.map(c => [c.toLowerCase(), c]));
 function kategoria(raw) {

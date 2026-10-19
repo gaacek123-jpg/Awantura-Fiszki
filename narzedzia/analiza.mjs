@@ -6,9 +6,10 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ZRODLA, id, wczytaj } from './wspolne.mjs';
+import { BAZA_WIEDZY } from './sejf.mjs';
 
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
-const OUT = join(arg('--katalog') || 'C:\\Users\\gaace\\ProjectsVault\\Personal\\Awantura o Kasę\\Baza wiedzy', 'Analizy');
+const OUT = join(arg('--katalog') || BAZA_WIEDZY, 'Analizy');
 const ANS = 'https://plan-dyzurow-default-rtdb.europe-west1.firebasedatabase.app/awantura/odpowiedzi.json';
 
 let data;

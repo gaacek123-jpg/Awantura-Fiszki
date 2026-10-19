@@ -7,9 +7,9 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 Przerabiasz transkrypty odcinków teleturnieju „Awantura o kasę” (Polsat, prowadzący Krzysztof Ibisz) na pytania do fiszek, na których drużyna Gacka przygotowuje się do występu.
 
 Ścieżki:
-- skrzynka z transkryptami: `C:\Users\gaace\ProjectsVault\Personal\Awantura o Kasę\Transkrypty\` (pliki `.txt`, `.srt`, `.vtt`)
+- skrzynka z transkryptami: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\Transkrypty\` (pliki `.txt`, `.srt`, `.vtt`)
 - przerobione przenosisz do: `…\Transkrypty\przetworzone\`
-- notatka z pytaniami z programu: `C:\Users\gaace\ProjectsVault\Personal\Awantura o Kasę\Awantura - pytania.md`
+- notatka z pytaniami z programu: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\Awantura - pytania.md`
 - talia appki: `C:\Users\gaace\AwanturaPrep\pytania.json`
 
 Jeśli polecenie wskazuje konkretny plik, przerób tylko jego. W przeciwnym razie przerób wszystkie pliki ze skrzynki (bez podfolderu `przetworzone`).
