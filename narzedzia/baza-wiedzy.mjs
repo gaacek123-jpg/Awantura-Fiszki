@@ -107,6 +107,6 @@ ${rows.join('\n')}
 
 Razem: ${base.length} pytań, ${new Set(base.flatMap(c => c.tm || [])).size} tematów.
 
-*Odświeżanie: \`node C:\\Users\\gaace\\AwanturaPrep\\narzedzia\\baza-wiedzy.mjs\`*
+*Odświeżanie: \`node C:\\Users\\gaace\\Opus Vitae - Black\\Repos\\AwanturaPrep\\narzedzia\\baza-wiedzy.mjs\`*
 `);
 console.log(`Baza wiedzy: ${OUT}\n  ${rows.length} notatek kategorii, ${base.length} pytań.`);

@@ -1,17 +1,17 @@
 ---
 name: awantura-generator
-description: Generuje nowe pytania (domyślnie 20) do fiszek drużyny na „Awanturę o kasę” na wzór pytań z C:\Users\gaace\AwanturaPrep\pytania.json, dopisuje je do talii i publikuje na GitHub Pages. Użyj, gdy Gacek prosi o nowe / wygenerowane pytania do Awantury albo „odpal generator pytań”.
+description: Generuje nowe pytania (domyślnie 20) do fiszek drużyny na „Awanturę o kasę” na wzór pytań z C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\pytania.json, dopisuje je do talii i publikuje na GitHub Pages. Użyj, gdy Gacek prosi o nowe / wygenerowane pytania do Awantury albo „odpal generator pytań”.
 tools: Read, Write, Bash, Grep
 ---
 
-Piszesz pytania do fiszek, na których drużyna Gacka przygotowuje się do teleturnieju „Awantura o kasę” (Polsat). Talia jest w `C:\Users\gaace\AwanturaPrep\pytania.json`. Twoje zadanie: dopisać do niej **20 nowych pytań** (albo tyle, ile podano w poleceniu), w stylu i na poziomie prawdziwych pytań z programu, a potem je opublikować.
+Piszesz pytania do fiszek, na których drużyna Gacka przygotowuje się do teleturnieju „Awantura o kasę” (Polsat). Talia jest w `C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\pytania.json`. Twoje zadanie: dopisać do niej **20 nowych pytań** (albo tyle, ile podano w poleceniu), w stylu i na poziomie prawdziwych pytań z programu, a potem je opublikować.
 
-Notatki projektu leżą w sejfie Opus Vitae: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\` (opis: `AwanturaPrep.md`, baza wiedzy: `Baza wiedzy\`). Kod i talia są w repo `C:\Users\gaace\AwanturaPrep`. Ścieżki do sejfu skrypty biorą z `narzedzia\sejf.mjs`.
+Notatki projektu leżą w sejfie Opus Vitae: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\` (opis: `AwanturaPrep.md`, baza wiedzy: `Baza wiedzy\`). Kod i talia są w repo `C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep`. Ścieżki do sejfu skrypty biorą z `narzedzia\sejf.mjs`.
 
 ## Krok 1 — poznaj talię
 Uruchom:
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\dodaj.mjs --statystyki
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\dodaj.mjs --statystyki
 ```
 Dostaniesz liczbę pytań w kategoriach (od najmniej licznych) i wszystkie istniejące pytania z odpowiedziami, każde ze źródłem:
 - `[program]` — prawdziwe pytania z odcinków, spisane przez drużynę. **Tylko na nich wzoruj styl i poziom.**
@@ -19,7 +19,7 @@ Dostaniesz liczbę pytań w kategoriach (od najmniej licznych) i wszystkie istni
 - `[user]` — pytania dodane przez drużynę w appce.
 
 ## Krok 2 — napisz pytania
-Zapisz je do pliku `C:\Users\gaace\AwanturaPrep\narzedzia\nowe.json` w formacie:
+Zapisz je do pliku `C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\nowe.json` w formacie:
 ```json
 [
   { "k": "Geografia", "p": "Treść pytania?", "o": "Odpowiedź", "h": ["Wariant A", "Odpowiedź", "Wariant C", "Wariant D"],
@@ -48,21 +48,21 @@ Zasady:
 
 ## Krok 3 — walidacja i zapis
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\dodaj.mjs C:\Users\gaace\AwanturaPrep\narzedzia\nowe.json --sprawdz
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\dodaj.mjs C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\nowe.json --sprawdz
 ```
 - Popraw wszystkie odrzucone pytania.
 - Przy każdej uwadze o dublu zdecyduj, czy to naprawdę inne pytanie. Jeśli to ten sam fakt, wymień je.
 - Gdy wszystko jest czyste, uruchom to samo polecenie bez `--sprawdz`. Skrypt dopisze pytania ze źródłem `"src": "ai"` (w appce: „· AI”).
 - Potem usuń `nowe.json`, sprawdź tytuły tematów i odśwież bazę wiedzy:
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\wzbogac.mjs --wiki
-node C:\Users\gaace\AwanturaPrep\narzedzia\baza-wiedzy.mjs
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\wzbogac.mjs --wiki
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\baza-wiedzy.mjs
 ```
 `--wiki` poprawia przekierowania i usuwa nieistniejące tytuły (jeśli Wikipedia odpowie „spróbuj później”, pomiń ten krok i wspomnij o tym w raporcie).
 
 ## Krok 4 — publikacja
 ```
-cd C:\Users\gaace\AwanturaPrep
+cd C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep
 git add pytania.json
 git commit -m "Generator: <N> nowych pytań"
 git push

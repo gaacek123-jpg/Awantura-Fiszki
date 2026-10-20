@@ -10,13 +10,13 @@ Przerabiasz transkrypty odcinków teleturnieju „Awantura o kasę” (Polsat, p
 - skrzynka z transkryptami: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\Transkrypty\` (pliki `.txt`, `.srt`, `.vtt`)
 - przerobione przenosisz do: `…\Transkrypty\przetworzone\`
 - notatka z pytaniami z programu: `C:\Users\gaace\Opus Vitae - Black\Opus Vitae - Pink\Projekty\Awantura o Kasę\Awantura - pytania.md`
-- talia appki: `C:\Users\gaace\AwanturaPrep\pytania.json`
+- talia appki: `C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\pytania.json`
 
 Jeśli polecenie wskazuje konkretny plik, przerób tylko jego. W przeciwnym razie przerób wszystkie pliki ze skrzynki (bez podfolderu `przetworzone`).
 
 ## Krok 1 — oczyść transkrypt
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\oczysc-transkrypt.mjs "<plik>"
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\oczysc-transkrypt.mjs "<plik>"
 ```
 Dostaniesz zwykły tekst bez znaczników czasu. To mowa z programu, często z automatycznych napisów: bez interpunkcji, z przekręconymi nazwami, wtrąceniami i licytacją.
 
@@ -63,34 +63,34 @@ W sekcji „Do sprawdzenia” **nie używaj** słów „Pytanie:”, „Kategori
 
 ## Krok 5 — import i publikacja
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\import-notatki.mjs
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\import-notatki.mjs
 ```
 Podgląd powinien pokazać tyle nowych pytań, ile dopisałeś (minus pominięte ze zdjęciem). Jeśli liczby się nie zgadzają albo pojawiają się kategorie spoza listy, popraw notatkę. Potem:
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\import-notatki.mjs --zapisz
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\import-notatki.mjs --zapisz
 ```
 
 ## Krok 6 — podpowiedzi, wyjaśnienia, tematy
 Każde pytanie w talii ma mieć 4 warianty podpowiedzi (`h`), wyjaśnienie (`w`) i tematy do nauki (`tm`). Nowo zaimportowane ich nie mają:
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\wzbogac.mjs --eksport 65
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\wzbogac.mjs --eksport 65
 ```
-Dla każdego wypisanego pytania zapisz w `C:\Users\gaace\AwanturaPrep\narzedzia\partia.json`:
+Dla każdego wypisanego pytania zapisz w `C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\partia.json`:
 `{ "id": "…", "h": ["A","B","C","D"], "w": "…", "tm": ["…"] }`
 - `h` — tylko gdy pytanie go nie ma: 4 wiarygodne warianty, a odpowiedź `o` **dokładnie** (ta sama forma gramatyczna) jako jeden z nich, na losowej pozycji.
 - `w` — 1–3 zdania: dlaczego tak, obliczenie przy zadaniu, kontekst albo ciekawostka; tylko pewne fakty. Jeśli nie masz pewnej wiedzy, wpisz `""`.
 - `tm` — 1–3 dokładne tytuły artykułów z polskiej Wikipedii.
 
 ```
-node C:\Users\gaace\AwanturaPrep\narzedzia\wzbogac.mjs C:\Users\gaace\AwanturaPrep\narzedzia\partia.json
-node C:\Users\gaace\AwanturaPrep\narzedzia\wzbogac.mjs --wiki
-node C:\Users\gaace\AwanturaPrep\narzedzia\baza-wiedzy.mjs
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\wzbogac.mjs C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\partia.json
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\wzbogac.mjs --wiki
+node C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep\narzedzia\baza-wiedzy.mjs
 ```
 Powtarzaj eksport, aż `--stan` pokaże 0 do uzupełnienia. Jeśli `--wiki` zgłosi „spróbuj później”, pomiń ten krok i wspomnij o tym w raporcie. Na koniec usuń `partia.json`.
 
 ## Krok 7 — publikacja
 ```
-cd C:\Users\gaace\AwanturaPrep
+cd C:\Users\gaace\Opus Vitae - Black\Repos\AwanturaPrep
 git add pytania.json
 git commit -m "Transkrypt: <N> pytań z <nazwa pliku>"
 git push
