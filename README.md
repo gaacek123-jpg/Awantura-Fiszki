@@ -17,8 +17,11 @@ Fiszki dla naszej drużyny przed występem w „Awanturze o kasę”. Statyczna 
 - **Statystyki:** skuteczność, mocne i słabe strony, co poczytać, a dla drużyny „kto w czym najmocniejszy”. Wymagają podania imienia; odpowiedzi trafiają do wspólnej bazy.
 - Postęp nauki zostaje na telefonie, a odpowiedzi do statystyk idą do bazy.
 
+## Generowanie pytań z AI (dla całej drużyny)
+Zakładka „Pytania” → **Generuj z AI**: wybierasz kategorię i liczbę pytań, a „Kopiuj prompt” składa gotowe polecenie (przykłady prawdziwych pytań z programu i lista tego, co już jest, żeby nie było dubli). Wklejasz je w dowolny czat AI (Claude, ChatGPT, Gemini), a odpowiedź wklejasz z powrotem. Appka sprawdza pytania tymi samymi regułami co `narzedzia/dodaj.mjs` (wspólny moduł `walidacja.js`), poprawia tytuły Wikipedii i wysyła dobre pytania do wspólnej bazy jako „AI · od: imię”. `node narzedzia/zrzut.mjs` przenosi je do `pytania.json` ze źródłem `ai` i autorem.
+
 ## Pola pytania (`pytania.json`)
-`k` kategoria · `p` pytanie · `o` odpowiedź · `h` 4 warianty podpowiedzi · `w` wyjaśnienie · `tm` tytuły artykułów polskiej Wikipedii · `src` źródło (`program` / `ai` / `user`) · `a` autor (dla `user`).
+`k` kategoria · `p` pytanie · `o` odpowiedź · `h` 4 warianty podpowiedzi · `w` wyjaśnienie · `tm` tytuły artykułów polskiej Wikipedii · `src` źródło (`program` / `ai` / `user`) · `a` autor (pytania od drużyny i z generatora w appce).
 
 ## Narzędzia (`narzedzia/`)
 | Skrypt | Do czego |
