@@ -291,6 +291,24 @@
       <button class="primary" id="btnAdd">Dodaj</button>
     </div>
 
+    <h2>Generuj z AI</h2>
+    <div class="panel opts">
+      <p class="small muted" style="margin:0">
+        1. Wybierz kategorię i liczbę pytań, kliknij <b>Kopiuj prompt</b>.<br>
+        2. Wklej go w dowolnym czacie AI (Claude, ChatGPT, Gemini — darmowa wersja wystarczy).<br>
+        3. Odpowiedź czatu wklej niżej i kliknij <b>Sprawdź i dodaj</b>. Dobre pytania trafią do wspólnej bazy jako „AI · od: Twoje imię”.
+      </p>
+      <label class="opt">Kategoria <select id="aiCat"></select></label>
+      <label class="opt">Ile pytań
+        <select id="aiCount"><option>5</option><option selected>10</option><option>20</option></select>
+      </label>
+      <button class="primary" id="btnAiPrompt">Kopiuj prompt</button>
+      <textarea id="aiPrompt" class="hidden" readonly style="min-height:120px"></textarea>
+      <textarea id="aiResult" placeholder="Wklej tu odpowiedź z czatu AI"></textarea>
+      <button class="primary" id="btnAiCheck">Sprawdź i dodaj</button>
+      <div id="aiReport" class="small"></div>
+    </div>
+
     <h2>Import wielu naraz</h2>
     <div class="panel opts">
       <p class="small muted" style="margin:0">
@@ -378,7 +396,8 @@
         if (!c.p || !c.o) continue;
         c.id = hash(c.p.toLowerCase());
         if (seen.has(c.id)) continue;
-        c.src = origin === 'base' ? (SRC[raw.src] ? raw.src : raw.ai ? 'ai' : 'program') : 'user';
+        // Z bazy drużyny: „ai” = wygenerowane przez kogoś z drużyny w panelu „Generuj z AI”, reszta = dopisane ręcznie
+        c.src = origin === 'base' ? (SRC[raw.src] ? raw.src : raw.ai ? 'ai' : 'program') : (raw.src === 'ai' ? 'ai' : 'user');
         seen.add(c.id); c.a = raw.a || ''; c._id = raw._id || c.id; out.push(c);
       }
     }
@@ -530,7 +549,7 @@
     const c = deck[pos];
     $('pPos').textContent = lastMode === 'marathon' ? `Maraton · pytanie ${answered + 1}` : `Pytanie ${pos + 1} / ${deck.length}`;
     $('pScore').textContent = `✓ ${okCount}`;
-    $('cCat').textContent = `${c.k} · ${c.src === 'user' && c.a ? 'od: ' + c.a : SRC[c.src]}`;
+    $('cCat').textContent = `${c.k} · ${c.src === 'user' && c.a ? 'od: ' + c.a : SRC[c.src] + (c.src === 'ai' && c.a ? ' · od: ' + c.a : '')}`;
     $('cCat').title = c.src === 'ai' ? 'Pytanie wygenerowane przez AI — jeśli coś się nie zgadza, zgłoś błąd' : '';
     $('cQ').textContent = c.p;
     $('cA').textContent = c.o; $('cA').classList.add('hidden');
@@ -793,11 +812,12 @@
   // ---------- zarządzanie pytaniami ----------
   function renderManage() {
     const cards = allCards();
+    renderAiPanel();
     $('catList').innerHTML = categories(cards).map(([c]) => `<option value="${esc(c)}">`).join('');
     $('optName').value = settings.name;
     const sharedList = Object.entries(shared).map(([id, c]) => ({ ...c, _id: id })).sort((a, b) => (b.t || 0) - (a.t || 0));
     $('customCount').textContent = sharedList.length + custom.length;
-    const row = (c, kind) => `<div class="item"><div>${esc(c.p)}<small>${esc(c.o)} · ${esc(c.k)}` +
+    const row = (c, kind) => `<div class="item"><div>${c.src === 'ai' ? '<span class="tag">AI</span> ' : ''}${esc(c.p)}<small>${esc(c.o)} · ${esc(c.k)}` +
       (c.a ? ` · ${esc(c.a)}` : '') + (kind === 'pending' ? ' · <b style="color:var(--gold)">czeka na wysłanie</b>' : '') +
       `</small></div><button class="icon ghost" data-del="${esc(c._id)}" data-kind="${kind}">Usuń</button></div>`;
     const html = custom.map(c => row(c, 'pending')).join('') + sharedList.map(c => row(c, 'shared')).join('');
@@ -845,6 +865,112 @@
     syncAll();
     return { added, dup };
   }
+
+  // ---------- generator z AI (prompt do dowolnego czatu → wklejka → walidacja → wspólna baza) ----------
+  // Reguły walidacji są wspólne z narzedzia/dodaj.mjs (walidacja.js). Moduł ładujemy zawczasu, bo kopiowanie
+  // do schowka na iPhonie musi się odbyć od razu w kliknięciu, bez czekania.
+  let W = null;
+  const loadW = () => W ? Promise.resolve(W) : import('./walidacja.js').then(m => (W = m));
+  const pick = (arr, n) => shuffle([...arr]).slice(0, n);
+
+  function renderAiPanel() {
+    loadW().then(() => {
+      const counts = new Map(W.KATEGORIE.map(k => [k, 0]));
+      for (const c of allCards()) if (counts.has(c.k)) counts.set(c.k, counts.get(c.k) + 1);
+      const keep = $('aiCat').value;
+      $('aiCat').innerHTML = `<option value="">Najsłabiej obsadzone (mieszanka)</option>` +
+        [...counts].sort((a, b) => a[0].localeCompare(b[0], 'pl')).map(([k, n]) => `<option value="${esc(k)}">${esc(k)} (${n})</option>`).join('');
+      $('aiCat').value = keep;
+    }).catch(() => {});
+  }
+
+  function buildPrompt(cat, n) {
+    const cards = allCards();
+    const count = k => cards.filter(c => c.k === k).length;
+    const cats = cat ? [cat] : [...W.KATEGORIE].sort((a, b) => count(a) - count(b)).slice(0, 4);
+    const inCats = cards.filter(c => cats.includes(c.k));
+    let examples = pick(inCats.filter(c => c.src === 'program'), 12);
+    if (examples.length < 8) examples = examples.concat(pick(cards.filter(c => c.src === 'program' && !examples.includes(c)), 8 - examples.length));
+    return `Przygotowujemy się do teleturnieju „Awantura o kasę” (Polsat). Napisz ${n} nowych pytań do fiszek, w stylu i na poziomie prawdziwych pytań z programu.
+
+Kategorie: ${cats.join(', ')}${cats.length > 1 ? ' (rozłóż pytania mniej więcej po równo)' : ''}.
+
+Przykłady prawdziwych pytań z programu (wzoruj się na stylu i poziomie, nie powtarzaj ich):
+${examples.map(c => `- [${c.k}] ${c.p} → ${c.o}`).join('\n')}
+
+Pytania, które już mamy w tych kategoriach — NIE pytaj o te same fakty, nawet innymi słowami:
+${inCats.map(c => `- ${c.p} → ${c.o}`).join('\n') || '- (brak)'}
+
+Zasady:
+- Poziom jak w programie: dorosły z dobrą wiedzą ogólną zna ok. połowę odpowiedzi. Bez pytań z podstawówki i bez wiedzy tylko dla specjalistów.
+- Mieszaj typy: zagadka z kilku wskazówek („… Kto to?”), krótkie zadanie logiczne lub liczbowe, pytanie o słowo lub termin, cytat lub przysłowie, polskie realia, ciekawostka naukowa.
+- Tylko fakty, których jesteś całkowicie pewien i które nie zmieniają się w czasie. Nie pytaj o wydarzenia z ostatnich 2 lat, rekordy ani rankingi.
+- Jedna, jednoznaczna poprawna odpowiedź. Bez pytań wymagających obrazka lub dźwięku.
+- „h”: dokładnie 4 różne warianty podpowiedzi; „o” musi być dosłownie jednym z nich (ta sama forma), na losowej pozycji; pozostałe warianty wiarygodne.
+- „w”: 1–3 zdania wyjaśnienia (dlaczego tak, obliczenie, ciekawostka).
+- „tm”: 1–3 dokładne tytuły artykułów z POLSKIEJ Wikipedii do poczytania.
+- „k”: dokładnie jedna z nazw kategorii podanych wyżej.
+- Poprawna polszczyzna, cudzysłowy „…”, pytanie kończy się znakiem „?”.
+
+Odpowiedz WYŁĄCZNIE tablicą JSON w bloku kodu, bez komentarzy, w tym formacie:
+\`\`\`json
+[
+  { "k": "${cats[0]}", "p": "Treść pytania?", "o": "Odpowiedź", "h": ["Wariant", "Odpowiedź", "Wariant", "Wariant"], "w": "Wyjaśnienie.", "tm": ["Tytuł artykułu"] }
+]
+\`\`\``;
+  }
+
+  $('btnAiPrompt').onclick = async () => {
+    if (!W) { toast('Chwila, ładuję generator — kliknij jeszcze raz.'); loadW(); return; }
+    const text = buildPrompt($('aiCat').value, +$('aiCount').value);
+    $('aiPrompt').value = text;
+    try { await navigator.clipboard.writeText(text); $('aiPrompt').classList.add('hidden'); toast('Prompt skopiowany — wklej go w czacie AI.'); }
+    catch { $('aiPrompt').classList.remove('hidden'); $('aiPrompt').select(); toast('Skopiuj prompt z pola poniżej.'); }
+  };
+
+  // Tematy sprawdzamy w API Wikipedii (CORS przez origin=*): poprawia przekierowania, usuwa nieistniejące.
+  // Bez internetu albo przy błędzie API zostawiamy tytuły bez zmian.
+  async function fixWiki(titles) {
+    const out = new Map(titles.map(t => [t, t]));
+    for (let i = 0; i < titles.length; i += 50) {
+      const chunk = titles.slice(i, i + 50);
+      try {
+        const r = await (await fetch('https://pl.wikipedia.org/w/api.php?action=query&format=json&redirects=1&origin=*&titles=' + encodeURIComponent(chunk.join('|')))).json();
+        const norm = new Map((r.query.normalized || []).map(x => [x.from, x.to]));
+        const redir = new Map((r.query.redirects || []).map(x => [x.from, x.to]));
+        const pages = Object.values(r.query.pages);
+        for (const t of chunk) {
+          const cur = redir.get(norm.get(t) || t) || norm.get(t) || t;
+          const page = pages.find(p => p.title === cur);
+          out.set(t, page && !('missing' in page) && !('invalid' in page) ? cur : null);
+        }
+      } catch {}
+    }
+    return out;
+  }
+
+  $('btnAiCheck').onclick = async () => {
+    if (!settings.name) { toast('Najpierw wpisz swoje imię na górze tej zakładki.'); $('optName').focus(); return; }
+    const W2 = await loadW();
+    let list;
+    try { list = W2.wyciagnijJson($('aiResult').value); }
+    catch { $('aiReport').innerHTML = '<p style="color:var(--bad)">Nie umiem odczytać odpowiedzi. Skopiuj z czatu cały blok JSON (od [ do ]).</p>'; return; }
+    const { ok, errors, warnings } = W2.sprawdzPytania(list, allCards());
+    $('aiReport').innerHTML = '<p class="muted">Sprawdzam tematy w Wikipedii…</p>';
+    const fix = await fixWiki([...new Set(ok.flatMap(c => c.tm))]);
+    for (const c of ok) {
+      custom.push({ _id: W2.id(c.p), k: c.k, p: c.p, o: c.o, h: c.h, w: c.w,
+        tm: [...new Set(c.tm.map(t => fix.get(t)).filter(Boolean))], src: 'ai', a: settings.name, t: Date.now() });
+    }
+    save(KEY.custom, custom);
+    if (ok.length) { $('aiResult').value = ''; syncAll(); }
+    $('aiReport').innerHTML =
+      `<p><b style="color:var(--ok)">Dodano ${ok.length} z ${list.length}</b>${ok.length ? ' — są już w talii całej drużyny jako „AI · od: ' + esc(settings.name) + '”.' : '.'}</p>` +
+      (errors.length ? `<p><b style="color:var(--bad)">Odrzucone (${errors.length}):</b></p><ul>${errors.map(e => `<li>${esc(e.p)}<br><span class="muted">✗ ${esc(e.powody.join('; '))}</span></li>`).join('')}</ul>` +
+        '<p class="muted">Możesz poprosić czat o poprawienie odrzuconych i wkleić je jeszcze raz.</p>' : '') +
+      (warnings.length ? `<p class="muted">Uwaga, możliwe powtórki faktów (dodane, ale sprawdź): ${warnings.map(esc).join(' · ')}</p>` : '');
+    renderManage();
+  };
 
   // ---------- wspólna baza ----------
   const httpError = r => new Error(r.status === 401 ? 'brak uprawnień' : 'HTTP ' + r.status);

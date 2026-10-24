@@ -1,6 +1,6 @@
 ﻿// Offline: najpierw sieć (żeby nowe pytania od razu docierały), w razie braku zasięgu — kopia z cache.
-const CACHE = 'awantura-v3';
-const FILES = ['./', 'index.html', 'pytania.json', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'awantura-v4';
+const FILES = ['./', 'index.html', 'pytania.json', 'walidacja.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -1,0 +1,6 @@
+{
+  "name": "awantura-fiszki",
+  "private": true,
+  "type": "module",
+  "description": "Fiszki do Awantury o kasę — skrypty w narzedzia/ i wspólna walidacja (walidacja.js) dla appki i Node"
+}
